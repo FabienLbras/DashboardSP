@@ -1,0 +1,45 @@
+body, html {
+  height: 100%;
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+.background {
+  background-image: url('images/dashboard.png');
+  background-size: cover;
+  background-position: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: -1;
+  filter: brightness(0.6); /* optional dark overlay for better contrast */
+}
+
+.signin-container {
+  background: rgba(255, 255, 255, 0.85); /* white with transparency */
+  padding: 40px;
+  max-width: 400px;
+  margin: 100px auto;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+
+input, button {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+button {
+  background-color: #0066ff;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #004ec2;
+}

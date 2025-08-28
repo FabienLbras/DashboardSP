@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Success Payment – Start Accepting Payments</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    .text-brand-blue { color: #00074F; }
+    .bg-brand-blue { background-color: #00074F; }
+    .bg-gold { background-color: #D4AF37; }
+    .text-gold { color: #D4AF37; }
+    .hero-logo { width: 300px; height: auto; }
+  </style>
+</head>
+<body class="bg-white text-gray-800 font-sans">
+
+  <!-- Mobile Burger Menu -->
+  <div class="relative z-50" x-data="{ open: false }">
+    <button @click="open = !open"
+      class="fixed top-6 right-6 z-50 bg-white p-2 rounded-md shadow-md focus:outline-none">
+      <svg class="w-6 h-6 text-gray-800" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+    <div x-show="open" @click.away="open = false" x-transition
+      class="fixed top-0 right-0 w-64 h-full bg-white shadow-lg flex flex-col pt-20 px-6 space-y-6">
+      <a href="index.html" class="text-lg font-semibold text-gray-800 hover:text-yellow-500 transition">Home</a>
+      <a href="contact.html" class="text-lg font-semibold text-gray-800 hover:text-yellow-500 transition">Contact</a>
+      <a href="signin.html" class="text-lg font-semibold text-gray-800 hover:text-yellow-500 transition">Sign In</a>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white shadow-md py-6 px-10 flex items-center justify-between">
+    <img src="images/logo.png" alt="Logo" class="hero-logo">
+    <a href="https://wa.me/352621966271" target="_blank" class="bg-brand-blue text-white px-6 py-2 rounded-full font-semibold hover:bg-gold transition">
+      Start Accepting Payments – Chat with Us
+    </a>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="relative h-screen bg-cover bg-center flex items-center justify-center text-center" style="background-image: url('images/InPersonPayment.jpg');">
+    <div class="absolute inset-0 bg-gradient-to-b from-black/60 to-black/80"></div>
+    <div class="relative z-10 max-w-3xl px-6">
+      <h1 class="text-5xl md:text-6xl font-bold text-white leading-tight mb-6 drop-shadow-lg">
+        You are your own <span class="text-gold">success</span>
+      </h1>
+      <p class="text-xl text-gray-200 mb-8 drop-shadow">
+        We're the <span class="text-white font-semibold">engine</span> behind it.
+      </p>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="max-w-5xl mx-auto py-20 px-6">
+    <h2 class="text-3xl font-bold text-center text-brand-blue mb-6">What is Success Payment?</h2>
+    <p class="text-center text-gray-700 text-lg">
+      Success Payment is your fast, secure, and scalable gateway to accept credit cards, mobile payments, and more. Empower your business today with an elegant solution.
+    </p>
+  </section>
+
+  <!-- Features -->
+  <section class="bg-gray-100 py-20 px-6">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
+      <div>
+        <h3 class="text-xl font-semibold text-brand-blue mb-2">⚡ Lightning Fast</h3>
+        <p class="text-gray-600">Transactions are processed in milliseconds, keeping you ahead of the game.</p>
+      </div>
+      <div>
+        <h3 class="text-xl font-semibold text-brand-blue mb-2">🔒 Ultra Secure</h3>
+        <p class="text-gray-600">Built with bank-grade encryption, we never store sensitive card data.</p>
+      </div>
+      <div>
+        <h3 class="text-xl font-semibold text-brand-blue mb-2">🌍 Global Reach</h3>
+        <p class="text-gray-600">Accept payments worldwide with multiple currency support.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="py-20 px-6 max-w-5xl mx-auto">
+    <h2 class="text-3xl font-bold text-center text-brand-blue mb-12">How It Works</h2>
+
+    <!-- Online Setup -->
+    <div class="mb-16">
+      <h3 class="text-2xl font-semibold text-brand-blue mb-6 text-center">For Your Website</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
+        <div>
+          <span class="text-5xl font-bold text-gold">1</span>
+          <h4 class="text-xl font-semibold my-4">Integrate</h4>
+          <p>Connect Success Payment to your website in minutes with our easy setup guide.</p>
+        </div>
+        <div>
+          <span class="text-5xl font-bold text-gold">2</span>
+          <h4 class="text-xl font-semibold my-4">Customize</h4>
+          <p>Style your checkout experience and branding however you like.</p>
+        </div>
+        <div>
+          <span class="text-5xl font-bold text-gold">3</span>
+          <h4 class="text-xl font-semibold my-4">Get Paid</h4>
+          <p>Start receiving money directly to your account. Simple as that.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Store Terminal Setup -->
+    <div>
+      <h3 class="text-2xl font-semibold text-brand-blue mb-6 text-center">For Your Store Terminal</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
+        <div>
+          <span class="text-5xl font-bold text-gold">1</span>
+          <h4 class="text-xl font-semibold my-4">Order</h4>
+          <p>Request your terminal via our <a href="contact.html" class="text-brand-blue underline">Contact Page</a>.</p>
+        </div>
+        <div>
+          <span class="text-5xl font-bold text-gold">2</span>
+          <h4 class="text-xl font-semibold my-4">Receive & Activate</h4>
+          <p>We deliver your terminal with an activation code and setup instructions.</p>
+        </div>
+        <div>
+          <span class="text-5xl font-bold text-gold">3</span>
+          <h4 class="text-xl font-semibold my-4">Start Accepting</h4>
+          <p>Plug in, activate, and begin accepting payments in-store immediately.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-brand-blue text-white py-8 text-center">
+    <img src="images/logo.png" alt="Logo" class="h-24 mx-auto mb-4" />
+    <p class="text-sm">&copy; 2025 Success Payment. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>

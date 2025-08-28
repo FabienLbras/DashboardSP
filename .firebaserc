@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "success-payment-dashboard"
+  },
+  "targets": {
+    "success-payment-dashboard": {
+      "hosting": {
+        "dashboard": [
+          "dashboard-success-payment"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

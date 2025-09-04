@@ -13,6 +13,7 @@ import Transactions from "./pages/Transactions";
 import UserProfiles from "./pages/UserProfiles";
 import { UserContext } from "./context/UserContext";
 import { ExtendedUser } from "./types/User";
+import Terminals from "./pages/Terminals";
 
 const saveUserData = async (user: User) => {
   const userRef = doc(db, "users", user.uid);
@@ -69,6 +70,7 @@ useEffect(() => {
           <Route index element={<Home />} />
           <Route path="profile" element={<UserProfiles />} />
           <Route path="transactions" element={<Transactions />} />
+          <Route path="terminals" element={<Terminals />} />
         </Route>
         <Route path="*" element={<Navigate to={user ? "/" : "/signin"} />} />
       </Routes>

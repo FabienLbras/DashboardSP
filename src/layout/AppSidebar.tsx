@@ -14,10 +14,10 @@ import {
   PieChartIcon,
   PlugInIcon,
   TableIcon,
-  UserCircleIcon,
+  UserCircleIcon
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
-import Logo from "../assets/logo.png";
+import Logo from "../assets/logo2.png";
 
 type NavItem = {
   name: string;
@@ -42,6 +42,11 @@ const navItems: NavItem[] = [
     name: "User Profile",
     path: "/profile",
   },
+  {
+    icon: <BoxCubeIcon />,
+    name: "Terminals",
+    path: "/terminals",
+  }
 ];
 
 const othersItems: NavItem[] = [
@@ -263,17 +268,17 @@ const AppSidebar: React.FC = () => {
     >
       <div
         className={`py-8 flex ${
-          !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+          !isExpanded && !isHovered ? "lg:justify-center" : "justify-center"
         }`}
       >
         <Link to="/">
-<img
-  src={Logo}
-  alt="Logo"
-  width={250}
-  height={140}
-  className={`${isExpanded || isHovered || isMobileOpen ? "" : "h-8 w-auto"}`}
-/>
+          <img
+            src={Logo}
+            alt="Logo"
+            width={150}
+            height={140}
+            className={`${isExpanded || isHovered || isMobileOpen ? "" : "h-8 w-auto"}`}
+          />
         </Link>
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
@@ -313,7 +318,7 @@ const AppSidebar: React.FC = () => {
             </div>
           </div>
         </nav>
-        </div>
+      </div>
     </aside>
   );
 };

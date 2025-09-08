@@ -18,6 +18,7 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import Logo from "../assets/logo2.png";
+import { FileText } from "lucide-react";
 
 type NavItem = {
   name: string;
@@ -46,6 +47,11 @@ const navItems: NavItem[] = [
     icon: <BoxCubeIcon />,
     name: "Terminals",
     path: "/terminals",
+  },
+  {
+    icon: <FileText />,
+    name: "Invoices",
+    path: "/invoices",
   }
 ];
 

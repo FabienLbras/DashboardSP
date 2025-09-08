@@ -1,0 +1,383 @@
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Badge } from "../components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { 
+  Plus,
+  Download, 
+  Search,
+  MoreHorizontal,
+  Eye,
+  FileText,
+  Send,
+  ExternalLink,
+  TrendingUp,
+  Clock,
+  DollarSign,
+  AlertTriangle
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import { mockInvoices } from "../data/mockData";
+import { InvoiceCreateDialog } from "../components/invoices/InvoiceCreateDialog";
+import { InvoiceDetailsDialog } from "../components/invoices/InvoiceDetailsDialog";
+import { ReminderDialog } from "../components/invoices/ReminderDialog";
+import { ReckonhubIntegrationDialog } from "../components/invoices/ReckonhubIntegrationDialog";
+import { useToast } from "../hooks/useToast";
+
+export default function Invoices() {
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [reckonhubDialogOpen, setReckonhubDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+
+  const filteredInvoices = mockInvoices.filter(invoice => {
+    const matchesSearch = invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         invoice.customer.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "paid":
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-200 transition-colors">Paid</Badge>;
+      case "pending":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors">Pending</Badge>;
+      case "overdue":
+        return <Badge variant="destructive" className="hover:bg-destructive/90 transition-colors">Overdue</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const handleViewInvoice = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setDetailsDialogOpen(true);
+  };
+
+  const handleSendReminder = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setReminderDialogOpen(true);
+  };
+
+  const handleDownloadPDF = (invoice: any) => {
+    toast({
+      title: "Generating PDF",
+      description: `Invoice #${invoice.number} PDF will be downloaded shortly.`,
+    });
+  };
+
+  const handleSendToReckonhub = (invoice: any) => {
+    toast({
+      title: "Sending to Reckonhub",
+      description: `Invoice #${invoice.number} has been sent to Reckonhub for processing.`,
+    });
+  };
+
+  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + invoice.amount, 0);
+  const paidAmount = filteredInvoices.filter(inv => inv.status === "paid").reduce((sum, invoice) => sum + invoice.amount, 0);
+  const pendingAmount = filteredInvoices.filter(inv => inv.status === "pending").reduce((sum, invoice) => sum + invoice.amount, 0);
+  const overdueAmount = filteredInvoices.filter(inv => inv.status === "overdue").reduce((sum, invoice) => sum + invoice.amount, 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary">Invoice Management</h1>
+          <p className="text-muted-foreground">Create, manage and track invoices with PDF export</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setReckonhubDialogOpen(true)} className="hover:scale-105 transition-transform">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Reckonhub Integration
+          </Button>
+          <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Invoice
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Total Invoiced
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totalAmount.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              {filteredInvoices.length} invoices
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Paid Amount
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">${paidAmount.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {filteredInvoices.filter(inv => inv.status === "paid").length} paid invoices
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Pending Amount
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600">${pendingAmount.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {filteredInvoices.filter(inv => inv.status === "pending").length} pending invoices
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1 border-l-4 border-l-red-500">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+              Overdue Amount
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              ${overdueAmount.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {filteredInvoices.filter(inv => inv.status === "overdue").length} overdue invoices
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 flex-wrap">
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by invoice number or customer..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Date range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="quarter">This Quarter</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Invoices Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Invoice List</CardTitle>
+          <CardDescription>
+            {filteredInvoices.length} invoices found
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Invoice #</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredInvoices.map((invoice) => (
+                <TableRow key={invoice.id}>
+                  <TableCell className="font-medium">{invoice.number}</TableCell>
+                  <TableCell>
+                    {new Date(invoice.date).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(invoice.dueDate).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>{invoice.customer}</TableCell>
+                  <TableCell className="font-medium">
+                    ${invoice.amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSendReminder(invoice)}>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Reminder
+                        </DropdownMenuItem>
+                        {(invoice.status === "pending" || invoice.status === "overdue") && (
+                          <DropdownMenuItem onClick={() => handleSendToReckonhub(invoice)}>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Send to Reckonhub
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Integration Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reckonhub Integration</CardTitle>
+          <CardDescription>
+            Seamlessly sync your invoices with Reckonhub accounting system
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <h4 className="font-medium">Features</h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Automatic PDF generation</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Real-time sync with accounting</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Automated payment tracking</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Multi-currency support</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h4 className="font-medium">Integration Status</h4>
+              <div className="p-4 border rounded-lg bg-blue-50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-blue-900">Ready to Connect</p>
+                    <p className="text-sm text-blue-700">Click to set up Reckonhub integration</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Connect
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dialogs */}
+      <InvoiceCreateDialog 
+        open={createDialogOpen} 
+        onOpenChange={setCreateDialogOpen}
+      />
+      
+      <InvoiceDetailsDialog 
+        open={detailsDialogOpen} 
+        onOpenChange={setDetailsDialogOpen}
+        invoice={selectedInvoice}
+      />
+      
+      <ReminderDialog 
+        open={reminderDialogOpen} 
+        onOpenChange={setReminderDialogOpen}
+        invoice={selectedInvoice}
+      />
+      
+      <ReckonhubIntegrationDialog 
+        open={reckonhubDialogOpen} 
+        onOpenChange={setReckonhubDialogOpen}
+      />
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ import UserProfiles from "./pages/UserProfiles";
 import { UserContext } from "./context/UserContext";
 import { ExtendedUser } from "./types/User";
 import Terminals from "./pages/Terminals";
+import MotionLoader from "./components/loaders/MotionLoader";
 
 const saveUserData = async (user: User) => {
   const userRef = doc(db, "users", user.uid);
@@ -53,7 +54,9 @@ useEffect(() => {
   return () => unsubscribe();
 }, []);
 
-  if (loading) return <div className="text-center py-20 text-xl">Loading...</div>;
+  if (loading) return <div className="text-center py-20 text-xl">
+    <MotionLoader />
+  </div>;
 
   return (
     <UserContext.Provider value={user}>

@@ -104,7 +104,7 @@ export default function Terminals() {
           <h1 className="text-3xl font-bold text-text-primary">Terminal Management</h1>
           <p className="text-muted-foreground">Monitor and manage all connected payment terminals</p>
         </div>
-        <Button className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+        <Button className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
           <Plus className="h-4 w-4 mr-2" />
           Add Terminal
         </Button>
@@ -112,7 +112,7 @@ export default function Terminals() {
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Terminals
@@ -126,7 +126,7 @@ export default function Terminals() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Online Terminals
@@ -142,7 +142,7 @@ export default function Terminals() {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Transactions Today

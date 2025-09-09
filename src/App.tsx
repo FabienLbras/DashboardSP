@@ -16,6 +16,7 @@ import { ExtendedUser } from "./types/User";
 import Terminals from "./pages/Terminals";
 import MotionLoader from "./components/loaders/MotionLoader";
 import Invoices from "./pages/Invoices";
+import Support from "./pages/Support";
 
 const saveUserData = async (user: User) => {
   const userRef = doc(db, "users", user.uid);
@@ -76,6 +77,7 @@ useEffect(() => {
           <Route path="transactions" element={<Transactions />} />
           <Route path="terminals" element={<Terminals />} />
           <Route path="invoices" element={<Invoices />} />
+          <Route path="support" element={<Support />} />
         </Route>
         <Route path="*" element={<Navigate to={user ? "/" : "/signin"} />} />
       </Routes>

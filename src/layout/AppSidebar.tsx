@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { BanknotesIcon } from "@heroicons/react/24/outline";
+import { BanknotesIcon, QuestionMarkCircleIcon } from "@heroicons/react/24/outline";
 
 // Assume these icons are imported from an icon library
 import {
@@ -18,7 +18,7 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import Logo from "../assets/logo2.png";
-import { FileText } from "lucide-react";
+import { CircleQuestionMarkIcon, FileText } from "lucide-react";
 
 type NavItem = {
   name: string;
@@ -55,7 +55,7 @@ const navItems: NavItem[] = [
   }
 ];
 
-const othersItems: NavItem[] = [
+const managementItems: NavItem[] = [
   {
     icon: <PieChartIcon />,
     name: "Charts",
@@ -66,12 +66,20 @@ const othersItems: NavItem[] = [
   },
 ];
 
+const settingsItems: NavItem[] = [
+  {
+    icon: <CircleQuestionMarkIcon className="w-5 h-5" />,
+    name: "Support",
+    path: "/support",
+  }
+];
+
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main" | "others";
+    type: "main" | "management" | "account";
     index: number;
   } | null>(null);
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
@@ -87,14 +95,14 @@ const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     let submenuMatched = false;
-    ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
+    ["main", "management"].forEach((menuType) => {
+      const items = menuType === "main" ? navItems : managementItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
-                type: menuType as "main" | "others",
+                type: menuType as "main" | "management",
                 index,
               });
               submenuMatched = true;
@@ -121,7 +129,7 @@ const AppSidebar: React.FC = () => {
     }
   }, [openSubmenu]);
 
-  const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
+  const handleSubmenuToggle = (index: number, menuType: "main" | "management" | "account") => {
     setOpenSubmenu((prevOpenSubmenu) => {
       if (
         prevOpenSubmenu &&
@@ -134,7 +142,7 @@ const AppSidebar: React.FC = () => {
     });
   };
 
-  const renderMenuItems = (items: NavItem[], menuType: "main" | "others") => (
+  const renderMenuItems = (items: NavItem[], menuType: "main" | "management" | "account") => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => (
         <li key={nav.name}>
@@ -306,6 +314,24 @@ const AppSidebar: React.FC = () => {
               </h2>
               {renderMenuItems(navItems, "main")}
             </div>
+
+            <div>
+              <h2
+                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
+                  !isExpanded && !isHovered
+                    ? "lg:justify-center"
+                    : "justify-start"
+                }`}
+              >
+                {isExpanded || isHovered || isMobileOpen ? (
+                  "Account"
+                ) : (
+                  <HorizontaLDots />
+                )}
+              </h2>
+              {renderMenuItems(settingsItems, "account")}
+            </div>
+
             <div className="">
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
@@ -320,7 +346,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots />
                 )}
               </h2>
-              {renderMenuItems(othersItems, "others")}
+              {renderMenuItems(managementItems, "management")}
             </div>
           </div>
         </nav>

@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // FIXED: use react-router-dom here
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebase";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
@@ -11,21 +10,43 @@ import LogoIcon from "../../assets/logo2.png";
 
 export default function SignInForm() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg("");
+    setIsLoading(true);
+
+    console.log("Sign in attempted with email:", email);
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate("/"); // or your dashboard route
+      await login(email, password);
+      console.log("Login successful, navigating to dashboard");
+      navigate("/", { replace: true });
     } catch (error: any) {
-      setErrorMsg("Invalid email or password.");
       console.error("Sign in error:", error);
+      
+      // Handle different error types
+      if (error.response?.status === 401) {
+        setErrorMsg("Invalid email or password. Please check your credentials and try again.");
+      } else if (error.response?.status === 404) {
+        setErrorMsg("User not found. Please check your email address.");
+      } else if (error.response?.data?.message) {
+        setErrorMsg(error.response.data.message);
+      } else if (error.message) {
+        setErrorMsg(error.message);
+      } else {
+        setErrorMsg("An unexpected error occurred. Please try again later.");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -123,8 +144,13 @@ export default function SignInForm() {
                     </div>
 
                     <div>
-                      <Button type="submit" className="w-full" size="sm">
-                        Sign In
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        size="sm"
+                        disabled={isLoading || !email || !password}
+                      >
+                        {isLoading ? "Signing In..." : "Sign In"}
                       </Button>
                     </div>
                   </div>

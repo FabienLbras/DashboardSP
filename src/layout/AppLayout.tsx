@@ -4,9 +4,8 @@ import AppHeader from "../components/header/AppHeader";
 import Backdrop from "./Backdrop";
 import AppSidebar from "./AppSidebar";
 import { useSidebar } from "../context/SidebarContext";
-import { ExtendedUser } from "../types/User";
 
-const LayoutContent: React.FC<{ user?: ExtendedUser }> = ({ user }) => {
+const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
   return (
@@ -20,8 +19,7 @@ const LayoutContent: React.FC<{ user?: ExtendedUser }> = ({ user }) => {
           isExpanded || isHovered ? "lg:ml-[290px]" : "lg:ml-[90px]"
         } ${isMobileOpen ? "ml-0" : ""}`}
       >
-        {/* ✅ Pass user to AppHeader */}
-        <AppHeader user={user} />
+        <AppHeader />
         <div className="p-4 mx-auto max-w-screen-2xl md:p-6">
           <Outlet />
         </div>
@@ -30,10 +28,10 @@ const LayoutContent: React.FC<{ user?: ExtendedUser }> = ({ user }) => {
   );
 };
 
-const AppLayout: React.FC<{ user?: ExtendedUser }> = ({ user }) => {
+const AppLayout: React.FC = () => {
   return (
     <SidebarProvider>
-      <LayoutContent user={user} />
+      <LayoutContent />
     </SidebarProvider>
   );
 };

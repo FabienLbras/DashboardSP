@@ -7,17 +7,14 @@ import "flatpickr/dist/flatpickr.css";
 import App from "./App";
 import { AppWrapper } from "./components/common/PageMeta";
 import { ThemeProvider } from "./context/ThemeContext";
-import { AuthProvider } from "./context/AuthContext"; // ✅ import
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider> {/* ✅ Add this */}
-          <AppWrapper>
-            <App />
-          </AppWrapper>
-        </AuthProvider>
+        <AppWrapper>
+          <App />
+        </AppWrapper>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>

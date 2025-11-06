@@ -1,12 +1,16 @@
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-interface ProtectedRouteProps {
+interface PublicRouteProps {
   children: ReactNode;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+/**
+ * PublicRoute component that redirects authenticated users away from public pages
+ * like signin/signup pages to the dashboard
+ */
+export default function PublicRoute({ children }: PublicRouteProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -17,5 +21,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  return user ? <>{children}</> : <Navigate to="/signin" replace />;
+  // If user is authenticated, redirect to dashboard
+  return user ? <Navigate to="/" replace /> : <>{children}</>;
 }

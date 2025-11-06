@@ -1,65 +1,108 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase"; // Adjust paths as needed
-
-interface ExtendedUser {
-  uid: string;
-  email: string | null;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  photoURL?: string;
-  bio?: string;
-  location?: string;
-  social?: {
-    facebook?: string;
-    twitter?: string;
-    linkedin?: string;
-    instagram?: string;
-  };
-}
+import AuthService, { User } from "../services/authService";
 
 interface AuthContextType {
-  user: ExtendedUser | null;
+  user: User | null;
   loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  isAuthenticated: boolean;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true });
+const AuthContext = createContext<AuthContextType>({ 
+  user: null, 
+  loading: true,
+  login: async () => {},
+  logout: () => {},
+  isAuthenticated: false
+});
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<ExtendedUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Login function
+  const login = async (email: string, password: string) => {
+    try {
+      const authResponse = await AuthService.login({ email, password });
+      const userData: User = {
+        email: authResponse.email,
+        name: authResponse.name
+      };
+      setUser(userData);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
+  };
+
+  // Logout function
+  const logout = () => {
+    AuthService.logout();
+    setUser(null);
+  };
+
+  // Check authentication on mount and token changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userRef = doc(db, "users", firebaseUser.uid);
-        const userDoc = await getDoc(userRef);
-        const data = userDoc.data();
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          firstName: data?.firstName,
-          lastName: data?.lastName,
-          photoURL: data?.photoURL || firebaseUser.photoURL || "",
-          bio: data?.bio || "",
-          location: data?.location || "",
-          social: data?.social || {},
-        });
+    const checkAuth = async () => {
+      setLoading(true);
+      
+      if (AuthService.isAuthenticated()) {
+        const currentUser = AuthService.getCurrentUser();
+        if (currentUser) {
+          // Validate token with backend
+          try {
+            const isValid = await AuthService.validateToken();
+            if (isValid) {
+              setUser(currentUser);
+            } else {
+              // Token is invalid, logout
+              AuthService.logout();
+              setUser(null);
+            }
+          } catch (error) {
+            console.error('Token validation failed:', error);
+            AuthService.logout();
+            setUser(null);
+          }
+        } else {
+          AuthService.logout();
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
+      
       setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    checkAuth();
+
+    // Listen for storage changes (logout from other tabs)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'accessToken' && !e.newValue) {
+        // Token was removed, logout
+        setUser(null);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      login, 
+      logout, 
+      isAuthenticated: !!user 
+    }}>
       {children}
     </AuthContext.Provider>
   );

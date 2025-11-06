@@ -1,69 +1,29 @@
-import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebase";
-import { User } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { AuthProvider } from "./context/AuthContext";
 import SignIn from "./pages/AuthPages/SignIn";
 import AppLayout from "./layout/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import PublicRoute from "./components/auth/PublicRoute";
 import Home from "./pages/Dashboard/Home";
 import Transactions from "./pages/Transactions";
 import UserProfiles from "./pages/UserProfiles";
-import { UserContext } from "./context/UserContext";
-import { ExtendedUser } from "./types/User";
 import Terminals from "./pages/Terminals";
-import MotionLoader from "./components/loaders/MotionLoader";
 import Invoices from "./pages/Invoices";
 import Support from "./pages/Support";
 
-const saveUserData = async (user: User) => {
-  const userRef = doc(db, "users", user.uid);
-  const existingDoc = await getDoc(userRef);
-  if (!existingDoc.exists()) {
-    await setDoc(userRef, {
-      firstName: "Linda",
-      lastName: "Groot",
-      email: user.email,
-      createdAt: new Date(),
-    });
-  }
-};
-
 export default function App() {
-  const [user, setUser] = useState<ExtendedUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-    if (firebaseUser) {
-      await saveUserData(firebaseUser);
-      const userRef = doc(db, "users", firebaseUser.uid);
-      const userDoc = await getDoc(userRef);
-      const data = userDoc.data();
-      setUser({
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        firstName: data?.firstName,
-        lastName: data?.lastName,
-      });
-    } else {
-      setUser(null);
-    }
-    setLoading(false);
-  });
-  return () => unsubscribe();
-}, []);
-
-  if (loading) return <div className="text-center py-20 text-xl">
-    <MotionLoader />
-  </div>;
 
   return (
-    <UserContext.Provider value={user}>
+    <AuthProvider>
       <Routes>
-        <Route path="/signin" element={<SignIn />} />
+        <Route 
+          path="/signin" 
+          element={
+            <PublicRoute>
+              <SignIn />
+            </PublicRoute>
+          } 
+        />
         <Route
           path="/"
           element={
@@ -79,8 +39,8 @@ useEffect(() => {
           <Route path="invoices" element={<Invoices />} />
           <Route path="support" element={<Support />} />
         </Route>
-        <Route path="*" element={<Navigate to={user ? "/" : "/signin"} />} />
+        <Route path="*" element={<Navigate to="/signin" />} />
       </Routes>
-    </UserContext.Provider>
+    </AuthProvider>
   );
 }

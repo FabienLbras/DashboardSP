@@ -1,16 +1,13 @@
 import { ThemeToggleButton } from "../common/ThemeToggleButton";
 import NotificationDropdown from "./NotificationDropdown";
 import UserDropdown from "./UserDropdown";
-import { ExtendedUser } from "../../types/User";
 
 interface HeaderProps {
-  user?: ExtendedUser;
   onClick?: () => void;
   onToggle: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onClick, onToggle }) => {
-  console.log("USER", user);
+const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
   return (
     <header className="sticky top-0 flex w-full bg-white border-b border-gray-200 dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-center justify-between w-full p-4 lg:px-6">
@@ -27,7 +24,7 @@ const Header: React.FC<HeaderProps> = ({ user, onClick, onToggle }) => {
         <div className="flex items-center gap-4">
           <ThemeToggleButton />
           <NotificationDropdown />
-          <UserDropdown user={user} />
+          <UserDropdown />
         </div>
       </div>
     </header>

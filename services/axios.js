@@ -1,15 +1,13 @@
 import axios from 'axios';
 
 // Create axios instance with default configuration
-// Create axios instance with default configuration
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8081/api',
+  baseURL: 'http://webhooks.success-payment.com/api/auth/login',
   timeout: 10000, // 10 seconds timeout
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  withCredentials: false, // Set to true if you need to send cookies
 });
 
 // Request interceptor to add auth token and other common headers

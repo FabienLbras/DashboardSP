@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AuthService from './authService';
 
-const API_BASE_URL = 'http://localhost:8081/api';
+const API_BASE_URL = 'http://webhooks.success-payment.com/api';
 
 // Create axios instance for general API calls
 const api = axios.create({

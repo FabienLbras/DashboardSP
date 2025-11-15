@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with default configuration
 const apiClient = axios.create({
-  baseURL: 'http://webhooks.success-payment.com/api/auth/login',
+  baseURL: 'http://webhooks.success-payment.com/api/',
   timeout: 10000, // 10 seconds timeout
   headers: {
     'Content-Type': 'application/json',
@@ -140,13 +140,13 @@ export const apiService = {
 
   // Payment transactions
   transactions: {
-    getAll: (params = {}) => apiClient.get('/transactions', { params }),
-    getById: (id) => apiClient.get(`/transactions/${id}`),
-    create: (data) => apiClient.post('/transactions', data),
-    update: (id, data) => apiClient.put(`/transactions/${id}`, data),
-    delete: (id) => apiClient.delete(`/transactions/${id}`),
-    getStats: (params = {}) => apiClient.get('/transactions/stats', { params }),
-    export: (params = {}) => apiClient.get('/transactions/export', { 
+    getAll: (params = {}) => apiClient.get('payment/transactions', { params }),
+    getById: (id) => apiClient.get(`/payment/transactions/${id}`),
+    create: (data) => apiClient.post('/payment/transactions', data),
+    update: (id, data) => apiClient.put(`/payment/transactions/${id}`, data),
+    delete: (id) => apiClient.delete(`/payment/transactions/${id}`),
+    getStats: (params = {}) => apiClient.get('/payment/transactions/stats', { params }),
+    export: (params = {}) => apiClient.get('/payment/transactions/export', { 
       params,
       responseType: 'blob' // For file downloads
     }),

@@ -13,14 +13,14 @@ import {
   Shield,
   Camera
 } from "lucide-react";
-import { use, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const Profile = () => {
   const { user, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [userInfo, setUserInfo] = useState({
-    name: `${user?.firstName} ${user?.lastName}`,
+    name: `${user?.name}`,
     email: user?.email || "",
     phone: "+1 (555) 123-4567",
     location: "Amsterdam, Netherlands",
@@ -36,11 +36,7 @@ const Profile = () => {
 
   const handleCancel = () => {
     setIsEditing(false);
-    // Reset form data if needed
   };
-
-  
-  console.log("Authenticated user:", user, "Loading:", loading);
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-4xl">
@@ -62,7 +58,7 @@ const Profile = () => {
                 <Avatar className="h-32 w-32 border-4 border-background shadow-medium">
                   <AvatarImage src="/placeholder-avatar.jpg" alt="Profile" />
                   <AvatarFallback className="bg-gradient-brand text-blue-600 text-2xl font-semibold">
-                    LG
+                    {userInfo.name.split(" ").map(n => n[0]).join("")}
                   </AvatarFallback>
                 </Avatar>
                 <Button 

@@ -42,7 +42,7 @@ export default function Home() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-3xl font-bold text-text-primary">Payment Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {user?.firstName}. Here's your hotel's payment overview.</p>
+          <p className="text-muted-foreground">Welcome back, {user?.name}. Here's your hotel's payment overview.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">

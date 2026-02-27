@@ -14,7 +14,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Get token from localStorage or your auth state management
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -67,8 +67,8 @@ apiClient.interceptors.response.use(
         case 401:
           // Unauthorized - redirect to login or refresh token
           console.error('Unauthorized access - redirecting to login');
-          localStorage.removeItem('authToken');
-          sessionStorage.removeItem('authToken');
+          localStorage.removeItem('accessToken');
+          sessionStorage.removeItem('accessToken');
           // You can dispatch a logout action here or redirect to login
           window.location.href = '/signin';
           break;

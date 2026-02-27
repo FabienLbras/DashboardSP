@@ -110,7 +110,7 @@ export default function TransactionDetailsModal({
   };
 
   const formatCurrency = (amount: number, currency = 'USD') => {
-    return `${currency} ${amount.toFixed(2)}`;
+    return `${currency} ${Number(amount).toFixed(2)}`;
   };
 
   return (

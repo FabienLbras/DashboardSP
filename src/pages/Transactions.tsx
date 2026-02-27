@@ -197,15 +197,15 @@ export default function Transactions() {
         transaction.id,
         new Date(transaction.createdOn).toLocaleString(),
         transaction.customerName,
-        transaction.amount.toFixed(2),
+        Number(transaction.amount).toFixed(2),
         transaction.currency || 'USD',
         transaction.location,
         transaction.state,
         transaction.terminal,
         transaction.paymentMethod,
         transaction.description || '',
-        transaction.fees ? transaction.fees.toFixed(2) : '0.00',
-        transaction.refundAmount ? transaction.refundAmount.toFixed(2) : '0.00'
+        transaction.fees ? Number(transaction.fees).toFixed(2) : '0.00',
+        transaction.refundAmount ? Number(transaction.refundAmount).toFixed(2) : '0.00'
       ]);
       
       // Combine headers and rows
@@ -281,13 +281,13 @@ export default function Transactions() {
       }
       
       // Calculate totals
-      const totalAmount = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+      const totalAmount = filteredTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
       const successAmount = filteredTransactions
         .filter(t => t.state === "completed" || t.state === "FULFILL")
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + Number(t.amount), 0);
       const failedAmount = filteredTransactions
         .filter(t => t.state === "failed")
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + Number(t.amount), 0);
       const totalFees = filteredTransactions.reduce((sum, t) => sum + (t.fees || 0), 0);
       const totalRefunds = filteredTransactions.reduce((sum, t) => sum + (t.refundAmount || 0), 0);
       
@@ -319,7 +319,7 @@ export default function Transactions() {
         new Date(transaction.createdOn).toLocaleDateString() + ' ' + 
         new Date(transaction.createdOn).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
         transaction.customerName,
-        `$${transaction.amount.toFixed(2)}`,
+        `$${Number(transaction.amount).toFixed(2)}`,
         transaction.currency || 'USD',
         transaction.location,
         transaction.state.toUpperCase(),
@@ -443,7 +443,7 @@ export default function Transactions() {
             </div>
             {!loading && displayTransactions.length > 0 && (
               <Badge variant="outline">
-                Total: ${displayTransactions.filter(t => t.state === "FULFILL").reduce((sum, t) => sum + t.amount, 0).toFixed(2)}
+                Total: ${displayTransactions.filter(t => t.state === "FULFILL").reduce((sum, t) => sum + Number(t.amount), 0).toFixed(2)}
               </Badge>
             )}
           </div>
@@ -503,7 +503,7 @@ export default function Transactions() {
                       </TableCell>
                       <TableCell>{transaction?.customerName}</TableCell>
                       <TableCell className="font-medium">
-                        {transaction?.amount?.toFixed(2)} {transaction?.currency || 'USD'}
+                        {Number(transaction?.amount).toFixed(2)} {transaction?.currency || 'USD'}
                       </TableCell>
                       <TableCell>{transaction?.location}</TableCell>
                       <TableCell>{getStatusBadge(transaction?.state)}</TableCell>

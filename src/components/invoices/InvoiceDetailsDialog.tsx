@@ -138,7 +138,7 @@ export function InvoiceDetailsDialog({ open, onOpenChange, invoice }: InvoiceDet
                 <p className="text-lg text-muted-foreground mt-2">#{invoice.number}</p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold">${invoice.amount.toFixed(2)}</div>
+                <div className="text-2xl font-bold">${Number(invoice.amount).toFixed(2)}</div>
                 <p className="text-sm text-muted-foreground">
                   Due: {new Date(invoice.dueDate).toLocaleDateString()}
                 </p>
@@ -209,8 +209,8 @@ export function InvoiceDetailsDialog({ open, onOpenChange, invoice }: InvoiceDet
                       <tr key={index} className="border-b border-muted hover:bg-muted/50 transition-colors">
                         <td className="py-3">{item.description}</td>
                         <td className="text-right py-3">{item.quantity}</td>
-                        <td className="text-right py-3">${item.rate.toFixed(2)}</td>
-                        <td className="text-right py-3 font-medium">${item.amount.toFixed(2)}</td>
+                        <td className="text-right py-3">${Number(item.rate).toFixed(2)}</td>
+                        <td className="text-right py-3 font-medium">${Number(item.amount).toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -222,16 +222,16 @@ export function InvoiceDetailsDialog({ open, onOpenChange, invoice }: InvoiceDet
                 <div className="w-64 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal:</span>
-                    <span>${invoiceDetails.subtotal.toFixed(2)}</span>
+                    <span>${Number(invoiceDetails.subtotal).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Tax (10%):</span>
-                    <span>${invoiceDetails.tax.toFixed(2)}</span>
+                    <span>${Number(invoiceDetails.tax).toFixed(2)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total:</span>
-                    <span>${invoiceDetails.total.toFixed(2)}</span>
+                    <span>${Number(invoiceDetails.total).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -272,7 +272,7 @@ export function InvoiceDetailsDialog({ open, onOpenChange, invoice }: InvoiceDet
                     <p className="text-muted-foreground">Credit Card ****1234</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">${invoice.amount.toFixed(2)}</p>
+                    <p className="font-medium">${Number(invoice.amount).toFixed(2)}</p>
                     <p className="text-muted-foreground">
                       {new Date(Date.now() - Math.random() * 10 * 24 * 60 * 60 * 1000).toLocaleDateString()}
                     </p>

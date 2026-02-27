@@ -193,7 +193,7 @@ export default function Terminals() {
                   </TableCell>
                   <TableCell>{terminal.todayTransactions}</TableCell>
                   <TableCell className="font-medium">
-                    ${terminal.todayRevenue.toFixed(2)}
+                    ${Number(terminal.todayRevenue).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">

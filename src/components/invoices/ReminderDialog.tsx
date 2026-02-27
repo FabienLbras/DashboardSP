@@ -35,7 +35,7 @@ export function ReminderDialog({ open, onOpenChange, invoice }: ReminderDialogPr
       subject: "Friendly Payment Reminder",
       message: `Dear ${invoice.customer},
 
-We hope this message finds you well. This is a gentle reminder that invoice #${invoice.number} for $${invoice.amount.toFixed(2)} was due on ${new Date(invoice.dueDate).toLocaleDateString()}.
+We hope this message finds you well. This is a gentle reminder that invoice #${invoice.number} for $${Number(invoice.amount).toFixed(2)} was due on ${new Date(invoice.dueDate).toLocaleDateString()}.
 
 We understand that oversights happen, and we're here to make the payment process as smooth as possible for you.
 
@@ -50,7 +50,7 @@ Accounts Receivable Team`
       subject: "Payment Reminder - Invoice Overdue",
       message: `Dear ${invoice.customer},
 
-This is to remind you that payment for invoice #${invoice.number} in the amount of $${invoice.amount.toFixed(2)} was due on ${new Date(invoice.dueDate).toLocaleDateString()} and remains outstanding.
+This is to remind you that payment for invoice #${invoice.number} in the amount of $${Number(invoice.amount).toFixed(2)} was due on ${new Date(invoice.dueDate).toLocaleDateString()} and remains outstanding.
 
 Please arrange for payment at your earliest convenience. If payment has already been made, please disregard this notice and accept our thanks.
 
@@ -63,7 +63,7 @@ Accounts Receivable Department`
       subject: "URGENT: Overdue Payment Notice",
       message: `Dear ${invoice.customer},
 
-URGENT NOTICE: Invoice #${invoice.number} for $${invoice.amount.toFixed(2)} is now significantly overdue. The original due date was ${new Date(invoice.dueDate).toLocaleDateString()}.
+URGENT NOTICE: Invoice #${invoice.number} for $${Number(invoice.amount).toFixed(2)} is now significantly overdue. The original due date was ${new Date(invoice.dueDate).toLocaleDateString()}.
 
 Immediate payment is required to avoid any disruption to services and potential late fees.
 
@@ -119,7 +119,7 @@ Accounts Receivable Team`
                 </div>
                 <div>
                   <p className="font-medium text-muted-foreground">Amount</p>
-                  <p className="font-semibold">${invoice.amount.toFixed(2)}</p>
+                  <p className="font-semibold">${Number(invoice.amount).toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="font-medium text-muted-foreground">Days Overdue</p>

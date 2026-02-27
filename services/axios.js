@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with default configuration
 const apiClient = axios.create({
-  baseURL: 'http://webhooks.success-payment.com/api/',
+  baseURL: import.meta.env?.VITE_API_URL || 'http://localhost:4000/api/',
   timeout: 10000, // 10 seconds timeout
   headers: {
     'Content-Type': 'application/json',

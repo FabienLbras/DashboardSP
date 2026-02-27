@@ -143,7 +143,7 @@ const TerminalActivityDialog = ({
               <p className="text-xs text-muted-foreground">Transactions Today</p>
             </div>
             <div className="p-3 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold">${terminal.todayRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">${Number(terminal.todayRevenue).toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">Revenue Today</p>
             </div>
           </div>
@@ -166,7 +166,7 @@ const TerminalActivityDialog = ({
                             <div className="flex items-center gap-2">
                             {activity.type === "transaction" ? (
                                 <span className="font-medium">
-                                ${activity.amount?.toFixed(2)} – {activity.customer}
+                                ${Number(activity.amount).toFixed(2)} – {activity.customer}
                                 </span>
                             ) : (
                                 <span className="font-medium">{activity.message}</span>

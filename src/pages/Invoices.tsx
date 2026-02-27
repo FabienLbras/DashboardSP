@@ -266,7 +266,7 @@ export default function Invoices() {
                   </TableCell>
                   <TableCell>{invoice.customer}</TableCell>
                   <TableCell className="font-medium">
-                    ${invoice.amount.toFixed(2)}
+                    ${Number(invoice.amount).toFixed(2)}
                   </TableCell>
                   <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                   <TableCell>

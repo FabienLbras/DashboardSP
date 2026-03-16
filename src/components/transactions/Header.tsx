@@ -2,6 +2,10 @@ import React from 'react'
 import { Button } from '../ui/button'
 import { Download, Loader2, RefreshCw } from 'lucide-react'
 
+import { useUser } from "../../context/UserContext";
+import { checkPermission } from "../../auth/checkPermission";
+import { PERMISSIONS } from "../../auth/permissions";
+
 interface HeaderProps {
   handleRefresh: () => void;
   handleExportCSV: () => void;
@@ -11,12 +15,14 @@ interface HeaderProps {
 }
 
 const Header = ({
+    
     handleRefresh,
     handleExportCSV,
     handleExportPDF,
     loading,
     displayTransactions
 }: HeaderProps) => {
+     const user = useUser();
     return (
         <div className="flex items-center justify-between">
             <div>
@@ -37,24 +43,28 @@ const Header = ({
                     )}
                     Refresh
                 </Button>
+                {checkPermission(user?.role, PERMISSIONS.EXPORT_REPORTS) && (
                 <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleExportCSV}
-                    disabled={loading || displayTransactions.length === 0}
+                variant="outline" 
+                size="sm" 
+                onClick={handleExportCSV}
+                disabled={loading || displayTransactions.length === 0}
                 >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
                 </Button>
+                )}
+                {checkPermission(user?.role, PERMISSIONS.EXPORT_REPORTS) && (
                 <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleExportPDF}
-                    disabled={loading || displayTransactions.length === 0}
+                variant="outline" 
+                size="sm" 
+                onClick={handleExportPDF}
+                disabled={loading || displayTransactions.length === 0}
                 >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export PDF
+                <Download className="h-4 w-4 mr-2" />
+                Export PDF
                 </Button>
+)}
             </div>
         </div>
     )

@@ -1,8 +1,8 @@
 
 
-import { useUser } from "../../context/UserContext";
-import { checkPermission } from "../../auth/checkPermission";
-import { PERMISSIONS } from "../../auth/permissions";
+import { useUser } from "../context/UserContext";
+import { checkPermission } from "../auth/checkPermission";
+import { PERMISSIONS } from "../auth/permissions";
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";

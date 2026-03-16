@@ -1,3 +1,9 @@
+
+
+import { useUser } from "../../context/UserContext";
+import { checkPermission } from "../../auth/checkPermission";
+import { PERMISSIONS } from "../../auth/permissions";
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -28,7 +34,18 @@ import Header from "../components/transactions/Header";
 import TransactionFilters from "../components/transactions/TransactionFilters";
 import TransactionActions from "../components/transactions/TransactionActions";
 
+
+
 export default function Transactions() {
+  const user = useUser();
+  if (!user || !checkPermission(user.role, PERMISSIONS.VIEW_TRANSACTIONS)) {
+  return (
+    <div className="p-6 text-center">
+      <h2 className="text-xl font-semibold">Access Denied</h2>
+      <p>You do not have permission to view this page.</p>
+    </div>
+        );
+    } 
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");

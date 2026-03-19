@@ -18,6 +18,7 @@ import Reconciliation from "./pages/Reconciliation";
 import EndOfDay from "./pages/EndOfDay";
 import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
+import Reports from "./pages/Reports";
 import { APP_PERMISSIONS } from "./lib/permissions";
 
 export default function App() {
@@ -73,6 +74,14 @@ export default function App() {
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:id" element={<CustomerDetail />} />
           <Route path="reconciliation" element={<Reconciliation />} />
+          <Route
+            path="reports"
+            element={
+              <PermissionRoute permission={APP_PERMISSIONS.GENERATE_REPORTS}>
+                <Reports />
+              </PermissionRoute>
+            }
+          />
           <Route
             path="end-of-day"
             element={

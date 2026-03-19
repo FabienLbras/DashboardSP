@@ -1,24 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BanknotesIcon, QuestionMarkCircleIcon } from "@heroicons/react/24/outline";
+import { BanknotesIcon } from "@heroicons/react/24/outline";
 
-// Assume these icons are imported from an icon library
 import {
   BoxCubeIcon,
-  CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
-  PageIcon,
-  PieChartIcon,
-  PlugInIcon,
-  TableIcon,
-  UserCircleIcon
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import Logo from "../assets/logo2.png";
-import { CircleQuestionMarkIcon, FileText, GitMerge, CalendarClock, Building2 } from "lucide-react";
+import { FileText, GitMerge, CalendarClock, Building2, BarChart2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { APP_PERMISSIONS, hasPermission, isSuperAdmin } from "../lib/permissions";
 
@@ -64,19 +56,15 @@ const navItems: NavItem[] = [
     icon: <FileText />,
     name: "Invoices",
     path: "/invoices",
-  }
-];
-
-const managementItems: NavItem[] = [
+  },
   {
-    icon: <PieChartIcon />,
-    name: "Charts",
-    subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
-    ],
+    icon: <BarChart2 className="w-5 h-5" />,
+    name: "Reports",
+    path: "/reports",
   },
 ];
+
+const managementItems: NavItem[] = [];
 
 const settingsItems: NavItem[] = [];
 
@@ -158,6 +146,9 @@ const AppSidebar: React.FC = () => {
     }
     if (item.path === "/invoices") {
       return hasPermission(user?.role, APP_PERMISSIONS.ACCESS_ECOMMERCE_DATA);
+    }
+    if (item.path === "/reports") {
+      return hasPermission(user?.role, APP_PERMISSIONS.GENERATE_REPORTS);
     }
     if (item.path === "/end-of-day") {
       return hasPermission(user?.role, APP_PERMISSIONS.VIEW_EOD_REPORTS);
@@ -355,22 +346,6 @@ const AppSidebar: React.FC = () => {
               {renderMenuItems(settingsItems, "account")}
             </div>
 
-            <div className="">
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems(managementItems, "management")}
-            </div>
           </div>
         </nav>
       </div>

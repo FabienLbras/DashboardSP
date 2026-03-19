@@ -11,47 +11,58 @@ export const mockKPIs = {
   failedTransactionsValue: 890.30
 };
 
+const _methods = ["Visa", "Mastercard", "American Express", "Apple Pay", "Google Pay"];
+const _statuses = ["completed", "completed", "completed", "completed", "completed", "failed", "refunded"];
+const _customers = ["John Doe", "Jane Smith", "Bob Johnson", "Alice Brown", "Marc Dupont", "Sophie Martin", "Luca Rossi", "Emma Wilson", "Carlos Garcia", "Yuki Tanaka"];
+const _locations = ["Main Reception", "Restaurant", "Spa", "Room Service", "Bar"];
+const _terminals = ["TERM-001", "TERM-002", "TERM-003"];
+
+function _txn(id: number, dateStr: string) {
+  const r = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+  const amount = parseFloat((20 + Math.random() * 480).toFixed(2));
+  return {
+    id: `TXN-${String(id).padStart(3, "0")}`,
+    amount,
+    paymentMethod: r(_methods),
+    status: r(_statuses),
+    terminal: r(_terminals),
+    date: dateStr,
+    customer: r(_customers),
+    location: r(_locations),
+  };
+}
+
 export const mockTransactions = [
-  {
-    id: "TXN-001",
-    amount: 120.50,
-    paymentMethod: "Visa",
-    status: "completed",
-    terminal: "TERM-001",
-    date: "2024-01-15T10:30:00Z",
-    customer: "John Doe",
-    location: "Main Reception"
-  },
-  {
-    id: "TXN-002",
-    amount: 89.20,
-    paymentMethod: "Mastercard",
-    status: "completed",
-    terminal: "TERM-002",
-    date: "2024-01-15T11:15:00Z",
-    customer: "Jane Smith",
-    location: "Restaurant"
-  },
-  {
-    id: "TXN-003",
-    amount: 45.75,
-    paymentMethod: "Apple Pay",
-    status: "failed",
-    terminal: "TERM-001",
-    date: "2024-01-15T12:00:00Z",
-    customer: "Bob Johnson",
-    location: "Spa"
-  },
-  {
-    id: "TXN-004",
-    amount: 200.00,
-    paymentMethod: "Visa",
-    status: "refunded",
-    terminal: "TERM-003",
-    date: "2024-01-15T14:30:00Z",
-    customer: "Alice Brown",
-    location: "Room Service"
-  }
+  _txn(1,  "2024-01-15T10:30:00Z"),
+  _txn(2,  "2024-01-15T11:15:00Z"),
+  _txn(3,  "2024-01-15T12:00:00Z"),
+  _txn(4,  "2024-01-15T14:30:00Z"),
+  _txn(5,  "2024-01-15T09:10:00Z"),
+  _txn(6,  "2024-01-14T10:00:00Z"),
+  _txn(7,  "2024-01-14T13:20:00Z"),
+  _txn(8,  "2024-01-14T15:45:00Z"),
+  _txn(9,  "2024-01-13T08:30:00Z"),
+  _txn(10, "2024-01-13T11:00:00Z"),
+  _txn(11, "2024-01-13T16:00:00Z"),
+  _txn(12, "2024-01-12T09:00:00Z"),
+  _txn(13, "2024-01-12T14:00:00Z"),
+  _txn(14, "2024-01-11T10:30:00Z"),
+  _txn(15, "2024-01-11T12:15:00Z"),
+  _txn(16, "2024-01-11T17:00:00Z"),
+  _txn(17, "2024-01-10T09:45:00Z"),
+  _txn(18, "2024-01-10T13:30:00Z"),
+  _txn(19, "2024-01-09T11:00:00Z"),
+  _txn(20, "2024-01-09T15:00:00Z"),
+  _txn(21, "2024-01-08T10:00:00Z"),
+  _txn(22, "2024-01-08T14:30:00Z"),
+  _txn(23, "2024-01-07T09:00:00Z"),
+  _txn(24, "2024-01-07T16:00:00Z"),
+  _txn(25, "2024-01-06T11:30:00Z"),
+  _txn(26, "2024-01-05T10:00:00Z"),
+  _txn(27, "2024-01-05T14:00:00Z"),
+  _txn(28, "2024-01-04T09:30:00Z"),
+  _txn(29, "2024-01-03T12:00:00Z"),
+  _txn(30, "2024-01-02T10:30:00Z"),
 ];
 
 export const mockTerminals = [
@@ -167,70 +178,57 @@ export const mockUsers = [
   }
 ];
 
+// Day-of-week multipliers (Mon=1 low, Fri=5 high, Sat=6 medium, Sun=0 very low)
+const _dowMult: Record<number, number> = { 0: 0.62, 1: 0.78, 2: 0.95, 3: 1.0, 4: 1.12, 5: 1.25, 6: 0.88 };
+function _eod(id: number, dateStr: string) {
+  const d = new Date(dateStr);
+  const m = _dowMult[d.getDay()];
+  const base = Math.round(120 * m + (Math.random() * 20 - 10));
+  const failed = Math.round(base * 0.055 + Math.random() * 3);
+  const success = base - failed;
+  const avg = 195 + Math.random() * 30;
+  return {
+    id: `EOD-${String(id).padStart(3, "0")}`,
+    date: dateStr,
+    totalTransactions: base,
+    successTransactions: success,
+    failedTransactions: failed,
+    totalAmount: parseFloat((base * avg).toFixed(2)),
+    averageTransaction: parseFloat(avg.toFixed(2)),
+  };
+}
+
 export const mockEndOfDay = [
-  {
-    id: "EOD-001",
-    date: "2024-01-15",
-    totalTransactions: 134,
-    successTransactions: 126,
-    failedTransactions: 8,
-    totalAmount: 25432.50,
-    averageTransaction: 201.85,
-  },
-  {
-    id: "EOD-002",
-    date: "2024-01-14",
-    totalTransactions: 118,
-    successTransactions: 110,
-    failedTransactions: 8,
-    totalAmount: 23100.20,
-    averageTransaction: 210.00,
-  },
-  {
-    id: "EOD-003",
-    date: "2024-01-13",
-    totalTransactions: 145,
-    successTransactions: 140,
-    failedTransactions: 5,
-    totalAmount: 28900.75,
-    averageTransaction: 206.43,
-  },
-  {
-    id: "EOD-004",
-    date: "2024-01-12",
-    totalTransactions: 89,
-    successTransactions: 82,
-    failedTransactions: 7,
-    totalAmount: 17650.30,
-    averageTransaction: 215.25,
-  },
-  {
-    id: "EOD-005",
-    date: "2024-01-11",
-    totalTransactions: 162,
-    successTransactions: 155,
-    failedTransactions: 7,
-    totalAmount: 32100.00,
-    averageTransaction: 207.10,
-  },
-  {
-    id: "EOD-006",
-    date: "2024-01-10",
-    totalTransactions: 101,
-    successTransactions: 95,
-    failedTransactions: 6,
-    totalAmount: 19800.60,
-    averageTransaction: 208.43,
-  },
-  {
-    id: "EOD-007",
-    date: "2024-01-09",
-    totalTransactions: 78,
-    successTransactions: 71,
-    failedTransactions: 7,
-    totalAmount: 15200.40,
-    averageTransaction: 214.09,
-  },
+  // Jan 2024 — skip Jan 12 intentionally (missing day alert)
+  _eod(1,  "2024-01-15"),
+  _eod(2,  "2024-01-14"),
+  _eod(3,  "2024-01-13"),
+  _eod(5,  "2024-01-11"),
+  _eod(6,  "2024-01-10"),
+  _eod(7,  "2024-01-09"),
+  _eod(8,  "2024-01-08"),
+  _eod(9,  "2024-01-07"),
+  _eod(10, "2024-01-06"),
+  _eod(11, "2024-01-05"),
+  _eod(12, "2024-01-04"),
+  _eod(13, "2024-01-03"),
+  _eod(14, "2024-01-02"),
+  _eod(15, "2024-01-01"),
+  _eod(16, "2023-12-31"),
+  _eod(17, "2023-12-30"),
+  _eod(18, "2023-12-29"),
+  _eod(19, "2023-12-28"),
+  _eod(20, "2023-12-27"),
+  _eod(21, "2023-12-26"),
+  _eod(22, "2023-12-25"),
+  _eod(23, "2023-12-24"),
+  _eod(24, "2023-12-23"),
+  _eod(25, "2023-12-22"),
+  _eod(26, "2023-12-21"),
+  _eod(27, "2023-12-20"),
+  _eod(28, "2023-12-19"),
+  _eod(29, "2023-12-18"),
+  _eod(30, "2023-12-17"),
 ];
 
 export const mockProperties = [

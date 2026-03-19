@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { CustomerService, Customer } from "../services/customerService";
 import { useToast } from "../hooks/useToast";
+import { useLanguage } from "../context/LanguageContext";
 
 type CustomerForm = { name: string; email: string; phone: string; address: string; status: "active" | "inactive" };
 const emptyForm: CustomerForm = { name: "", email: "", phone: "", address: "", status: "active" };
@@ -30,6 +31,7 @@ const emptyForm: CustomerForm = { name: "", email: "", phone: "", address: "", s
 export default function Customers() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,23 +135,23 @@ export default function Customers() {
         <div>
           <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
             <Building2 className="h-8 w-8 text-blue-600" />
-            Customers
+            {t("customers")}
           </h1>
-          <p className="text-muted-foreground">Manage all customers, their properties and users</p>
+          <p className="text-muted-foreground">{t("manageCustomers")}</p>
         </div>
         <Button onClick={() => navigate("/customers/new")} className="text-white bg-blue-700 hover:bg-blue-800">
           <Plus className="h-4 w-4 mr-2" />
-          Add Customer
+          {t("addCustomer")}
         </Button>
       </div>
 
       {/* Summary */}
       <div className="grid gap-4 md:grid-cols-4">
         {[
-          { label: "Total Customers", value: customers.length, icon: <Building2 className="w-4 h-4" /> },
-          { label: "Active", value: active, icon: <Building2 className="w-4 h-4 text-green-500" />, color: "text-green-600" },
-          { label: "Total Properties", value: totalProperties, icon: <Building2 className="w-4 h-4 text-blue-500" />, color: "text-blue-600" },
-          { label: "Total Users", value: totalUsers, icon: <Users className="w-4 h-4 text-purple-500" />, color: "text-purple-600" },
+          { label: t("totalCustomers"), value: customers.length, icon: <Building2 className="w-4 h-4" /> },
+          { label: t("active"), value: active, icon: <Building2 className="w-4 h-4 text-green-500" />, color: "text-green-600" },
+          { label: t("totalProperties"), value: totalProperties, icon: <Building2 className="w-4 h-4 text-blue-500" />, color: "text-blue-600" },
+          { label: t("totalUsers"), value: totalUsers, icon: <Users className="w-4 h-4 text-purple-500" />, color: "text-purple-600" },
         ].map((s) => (
           <Card key={s.label} className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
             <CardHeader className="pb-3">
@@ -170,16 +172,16 @@ export default function Customers() {
           <div className="flex gap-4 flex-wrap">
             <div className="flex-1 min-w-64 relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search by name or email..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+              <Input placeholder={t("searchCustomer")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                <SelectItem value="active">{t("active")}</SelectItem>
+                <SelectItem value="inactive">{t("inactive")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -189,14 +191,14 @@ export default function Customers() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Customer List</CardTitle>
-          <CardDescription>{filtered.length} customers found</CardDescription>
+          <CardTitle>{t("customerList")}</CardTitle>
+          <CardDescription>{filtered.length} {t("customersFound")}</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-8 w-8 animate-spin mr-2" />
-              <span className="text-muted-foreground">Loading...</span>
+              <span className="text-muted-foreground">{t("loading")}</span>
             </div>
           ) : error ? (
             <div className="flex items-center gap-2 p-4 text-red-700 bg-red-50 rounded-md">
@@ -205,20 +207,20 @@ export default function Customers() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              {customers.length === 0 ? "No customers yet. Create your first one!" : "No customers match your filters."}
+              {customers.length === 0 ? t("noCustomersYet") : t("noCustomersMatchFilters")}
             </div>
           ) : (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Properties</TableHead>
-                    <TableHead>Users</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>{t("name")}</TableHead>
+                    <TableHead>{t("email")}</TableHead>
+                    <TableHead>{t("phone")}</TableHead>
+                    <TableHead>{t("properties")}</TableHead>
+                    <TableHead>{t("users")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
+                    <TableHead>{t("created")}</TableHead>
                     <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
@@ -255,13 +257,13 @@ export default function Customers() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => navigate(`/customers/${c.id}`)}>
-                              <Eye className="h-4 w-4 mr-2" />View Details
+                              <Eye className="h-4 w-4 mr-2" />{t("viewDetails")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => navigate(`/customers/${c.id}/edit`)}>
-                              <Edit className="h-4 w-4 mr-2" />Edit
+                              <Edit className="h-4 w-4 mr-2" />{t("edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setDeleteTarget(c)} className="text-red-600">
-                              <Trash2 className="h-4 w-4 mr-2" />Delete
+                              <Trash2 className="h-4 w-4 mr-2" />{t("delete")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -279,7 +281,7 @@ export default function Customers() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Customer" : "New Customer"}</DialogTitle>
+            <DialogTitle>{editing ? t("editCustomer") : t("newCustomer")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave}>
             <div className="space-y-4 py-2">
@@ -304,8 +306,8 @@ export default function Customers() {
                   <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="active">{t("active")}</SelectItem>
+                      <SelectItem value="inactive">{t("inactive")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -316,8 +318,8 @@ export default function Customers() {
               </div>
             </div>
             <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? "Saving..." : editing ? "Save Changes" : "Create Customer"}</Button>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>{t("cancel")}</Button>
+              <Button type="submit" disabled={saving}>{saving ? t("saving") : editing ? t("saveChanges") : t("createCustomer")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -327,15 +329,13 @@ export default function Customers() {
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Customer</DialogTitle>
+            <DialogTitle>{t("deleteCustomer")}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This will also delete all their properties and users. This action cannot be undone.
-          </p>
+          <p className="text-sm text-muted-foreground py-2" dangerouslySetInnerHTML={{ __html: `${t("deleteCustomerConfirm")} <strong>${deleteTarget?.name}</strong>? ${t("deleteCustomerWarning")}` }} />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>{t("cancel")}</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? t("deleting") : t("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

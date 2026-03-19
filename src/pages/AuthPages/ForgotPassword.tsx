@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthService } from "../../services/authService";
+import { useLanguage } from "../../context/LanguageContext";
 import LogoIcon from "../../assets/logo2.png";
 import Label from "../../components/form/Label";
 import Input from "../../components/form/input/InputField";
@@ -8,6 +9,7 @@ import Button from "../../components/ui/button/Button";
 import { ArrowLeft, Mail } from "lucide-react";
 
 export default function ForgotPassword() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -23,7 +25,7 @@ export default function ForgotPassword() {
       const message = await AuthService.forgotPassword(email);
       setSuccessMsg(
         message ||
-          "If an account with that email exists, a reset link has been sent. Please check your inbox."
+          t("resetLinkSent")
       );
     } catch (err: any) {
       const msg =
@@ -32,7 +34,7 @@ export default function ForgotPassword() {
         "Something went wrong. Please try again.";
       // Always show a generic message to avoid email enumeration
       setSuccessMsg(
-        "If an account with that email exists, a reset link has been sent. Please check your inbox."
+        t("resetLinkSent")
       );
       console.error("Forgot password error:", msg);
     } finally {
@@ -66,10 +68,10 @@ export default function ForgotPassword() {
 
             <div className="mb-6">
               <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-                Forgot Password
+                {t("forgotPasswordTitle")}
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                We'll send a reset link to your email address.
+                {t("forgotPasswordDesc")}
               </p>
             </div>
 
@@ -84,7 +86,7 @@ export default function ForgotPassword() {
                   className="flex items-center justify-center gap-2 text-sm text-brand-500 hover:text-brand-600 font-medium"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  Back to Sign In
+                  {t("backToSignIn")}
                 </Link>
               </div>
             ) : (
@@ -97,7 +99,7 @@ export default function ForgotPassword() {
 
                 <div>
                   <Label>
-                    Email <span className="text-error-500">*</span>
+                    {t("email")} <span className="text-error-500">*</span>
                   </Label>
                   <Input
                     type="email"
@@ -115,7 +117,7 @@ export default function ForgotPassword() {
                   size="sm"
                   disabled={isLoading || !email}
                 >
-                  {isLoading ? "Sending..." : "Send Reset Link"}
+                  {isLoading ? t("sending") : t("sendResetLink")}
                 </Button>
 
                 <div className="text-center">
@@ -124,7 +126,7 @@ export default function ForgotPassword() {
                     className="flex items-center justify-center gap-2 text-sm text-brand-500 hover:text-brand-600 font-medium"
                   >
                     <ArrowLeft className="h-4 w-4" />
-                    Back to Sign In
+                    {t("backToSignIn")}
                   </Link>
                 </div>
               </form>

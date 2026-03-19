@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { useCustomerFilter } from "../context/CustomerFilterContext";
 import { isSuperAdmin } from "../lib/permissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -129,6 +130,7 @@ const mockReconciliation: ReconciliationRecord[] = [
 
 export default function Reconciliation() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { selectedCustomer, setSelectedCustomer, customers } = useCustomerFilter();
   const isAdmin = isSuperAdmin(user?.role);
 
@@ -183,21 +185,21 @@ export default function Reconciliation() {
         return (
           <Badge className="bg-green-100 text-green-800 hover:bg-green-200 gap-1">
             <CheckCircle className="h-3 w-3" />
-            Matched
+            {t("matched")}
           </Badge>
         );
       case "unmatched":
         return (
           <Badge className="bg-red-100 text-red-800 hover:bg-red-200 gap-1">
             <XCircle className="h-3 w-3" />
-            Unmatched
+            {t("unmatched")}
           </Badge>
         );
       case "pending":
         return (
           <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 gap-1">
             <AlertCircle className="h-3 w-3" />
-            Pending
+            {t("pending")}
           </Badge>
         );
     }
@@ -233,20 +235,20 @@ export default function Reconciliation() {
         <div>
           <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
             <GitMerge className="h-8 w-8 text-blue-600" />
-            Reconciliation
+            {t("reconciliation")}
           </h1>
           <p className="text-muted-foreground">
-            Match and verify transactions against expected records
+            {t("matchVerify")}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => {}}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {t("refresh")}
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            {t("exportCsv")}
           </Button>
         </div>
       </div>
@@ -257,13 +259,13 @@ export default function Reconciliation() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-500" />
-              Matched
+              {t("matched")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{matched}</div>
             <p className="text-xs text-muted-foreground">
-              {filtered.length > 0 ? Math.round((matched / filtered.length) * 100) : 0}% match rate
+              {filtered.length > 0 ? Math.round((matched / filtered.length) * 100) : 0}{t("matchRate")}
             </p>
           </CardContent>
         </Card>
@@ -272,12 +274,12 @@ export default function Reconciliation() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <XCircle className="w-4 h-4 text-red-500" />
-              Unmatched
+              {t("unmatched")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{unmatched}</div>
-            <p className="text-xs text-muted-foreground">Requires attention</p>
+            <p className="text-xs text-muted-foreground">{t("requiresAttention")}</p>
           </CardContent>
         </Card>
 
@@ -285,12 +287,12 @@ export default function Reconciliation() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-yellow-500" />
-              Pending
+              {t("pending")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{pending}</div>
-            <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
+            <p className="text-xs text-muted-foreground">{t("awaitingConfirmation")}</p>
           </CardContent>
         </Card>
 
@@ -298,14 +300,14 @@ export default function Reconciliation() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-blue-500" />
-              Total Discrepancy
+              {t("totalDiscrepancy")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
               ${totalDifference.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">Across {unmatched + pending} records</p>
+            <p className="text-xs text-muted-foreground">{t("acrossRecords", { count: unmatched + pending })}</p>
           </CardContent>
         </Card>
       </div>
@@ -313,7 +315,7 @@ export default function Reconciliation() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
+          <CardTitle className="text-lg">{t("filter")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 flex-wrap">
@@ -321,7 +323,7 @@ export default function Reconciliation() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search by ID, transaction ID or terminal..."
+                  placeholder={t("searchReconciliation")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -330,21 +332,21 @@ export default function Reconciliation() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-44">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="matched">Matched</SelectItem>
-                <SelectItem value="unmatched">Unmatched</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                <SelectItem value="matched">{t("matched")}</SelectItem>
+                <SelectItem value="unmatched">{t("unmatched")}</SelectItem>
+                <SelectItem value="pending">{t("pending")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={terminalFilter} onValueChange={setTerminalFilter}>
               <SelectTrigger className="w-44">
-                <SelectValue placeholder="Terminal" />
+                <SelectValue placeholder={t("terminals")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Terminals</SelectItem>
+                <SelectItem value="all">{t("allTerminals")}</SelectItem>
                 {terminals.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
@@ -352,14 +354,14 @@ export default function Reconciliation() {
             </Select>
             <Select value={dateFilter} onValueChange={setDateFilter}>
               <SelectTrigger className="w-44">
-                <SelectValue placeholder="Date range" />
+                <SelectValue placeholder={t("dateRange")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Dates</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="all">{t("allDates")}</SelectItem>
+                <SelectItem value="today">{t("today")}</SelectItem>
+                <SelectItem value="yesterday">{t("yesterday")}</SelectItem>
+                <SelectItem value="week">{t("thisWeek")}</SelectItem>
+                <SelectItem value="month">{t("thisMonth")}</SelectItem>
               </SelectContent>
             </Select>
             {isAdmin && (
@@ -368,10 +370,10 @@ export default function Reconciliation() {
                 onValueChange={(v) => setSelectedCustomer(v === "all" ? null : (customers.find((c) => String(c.id) === v) ?? null))}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All Customers" />
+                  <SelectValue placeholder={t("allCustomers")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Customers</SelectItem>
+                  <SelectItem value="all">{t("allCustomers")}</SelectItem>
                   {customers.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
                   ))}
@@ -385,30 +387,30 @@ export default function Reconciliation() {
       {/* Reconciliation Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Reconciliation Records</CardTitle>
-          <CardDescription>{filtered.length} records found</CardDescription>
+          <CardTitle>{t("reconciliationRecords")}</CardTitle>
+          <CardDescription>{filtered.length} {t("recordsFound")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="max-h-[600px] overflow-y-auto rounded-md border">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableHead>Rec. ID</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Transaction ID</TableHead>
-                  <TableHead>Terminal</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Expected</TableHead>
-                  <TableHead>Actual</TableHead>
-                  <TableHead>Difference</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("recId")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("transactionId2")}</TableHead>
+                  <TableHead>{t("terminals")}</TableHead>
+                  <TableHead>{t("paymentMethod")}</TableHead>
+                  <TableHead>{t("expected")}</TableHead>
+                  <TableHead>{t("actual")}</TableHead>
+                  <TableHead>{t("difference")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
-                      No records match your filters
+                      {t("noRecordsMatchFilters")}
                     </TableCell>
                   </TableRow>
                 ) : (

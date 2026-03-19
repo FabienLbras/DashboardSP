@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Shield } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 import AuthService, {
   BackupCodesResponse,
   MfaSetupResponse,
@@ -12,6 +13,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 
 export default function MfaSettings() {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<MfaStatusResponse | null>(null);
   const [setup, setSetup] = useState<MfaSetupResponse | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
@@ -155,13 +157,13 @@ export default function MfaSettings() {
     <div className="container mx-auto max-w-5xl px-4 py-6">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Multi-Factor Authentication</h1>
+          <h1 className="text-3xl font-bold text-text-primary">{t("mfaTitle")}</h1>
           <p className="mt-1 text-text-secondary">
-            Protect your account with an authenticator app and one-time backup codes.
+            {t("mfaDesc")}
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link to="/profile">Back to profile</Link>
+          <Link to="/profile">{t("backToProfile")}</Link>
         </Button>
       </div>
 
@@ -178,18 +180,18 @@ export default function MfaSettings() {
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="p-6">
-          <h2 className="text-xl font-semibold text-text-primary">Status</h2>
+          <h2 className="text-xl font-semibold text-text-primary">{t("status")}</h2>
           {loading ? (
-            <p className="mt-4 text-sm text-text-secondary">Loading MFA status...</p>
+            <p className="mt-4 text-sm text-text-secondary">{t("loadingMfaStatus")}</p>
           ) : (
             <div className="mt-4 space-y-4">
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                <p className="text-sm text-text-secondary">Current protection</p>
+                <p className="text-sm text-text-secondary">{t("currentProtection")}</p>
                 <p className="mt-1 text-lg font-semibold text-text-primary">
-                  {status?.mfaEnabled ? "MFA enabled" : "MFA disabled"}
+                  {status?.mfaEnabled ? t("mfaEnabled") : t("mfaDisabled")}
                 </p>
                 <p className="mt-2 text-sm text-text-secondary">
-                  Backup codes remaining: {status?.backupCodesRemaining ?? 0}
+                  {t("backupCodesRemaining")}: {status?.backupCodesRemaining ?? 0}
                 </p>
               </div>
 
@@ -200,9 +202,9 @@ export default function MfaSettings() {
                       <Shield className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-text-primary">Enable MFA protection</h3>
+                      <h3 className="font-semibold text-text-primary">{t("enableMfaProtection")}</h3>
                       <p className="mt-1 text-sm text-text-secondary">
-                        Add an authenticator app and backup codes to protect this account.
+                        {t("enableMfaDesc")}
                       </p>
                     </div>
                   </div>
@@ -212,7 +214,7 @@ export default function MfaSettings() {
                     className="inline-flex w-full items-center justify-center gap-2 shadow-sm"
                   >
                     <Shield className="h-4 w-4" />
-                    {busyAction === "setup" ? "Preparing..." : "Start MFA setup"}
+                    {busyAction === "setup" ? t("preparing") : t("startMfaSetup")}
                   </Button>
                 </div>
               )}
@@ -220,9 +222,9 @@ export default function MfaSettings() {
               {setup && (
                 <div className="space-y-4 rounded-lg border border-gray-200 p-4">
                   <div>
-                    <h3 className="font-medium text-text-primary">1. Scan the QR code</h3>
+                    <h3 className="font-medium text-text-primary">{t("scanQrCode")}</h3>
                     <p className="mt-1 text-sm text-text-secondary">
-                      Use Google Authenticator, 1Password, Authy, or another TOTP app.
+                      {t("scanQrDesc")}
                     </p>
                   </div>
                   <img
@@ -231,11 +233,11 @@ export default function MfaSettings() {
                     className="h-56 w-56 rounded-lg border border-gray-200 bg-white p-3"
                   />
                   <div>
-                    <Label htmlFor="manual-secret">Manual setup secret</Label>
+                    <Label htmlFor="manual-secret">{t("manualSetupSecret")}</Label>
                     <Input id="manual-secret" value={setup.secret} readOnly />
                   </div>
                   <div>
-                    <Label htmlFor="setup-code">2. Confirm with a 6-digit code</Label>
+                    <Label htmlFor="setup-code">{t("confirmSixDigit")}</Label>
                     <Input
                       id="setup-code"
                       value={setupCode}
@@ -247,7 +249,7 @@ export default function MfaSettings() {
                     onClick={handleConfirmSetup}
                     disabled={!setupCode || busyAction !== null}
                   >
-                    {busyAction === "confirm" ? "Confirming..." : "Enable MFA"}
+                    {busyAction === "confirm" ? t("confirming") : t("enableMfa")}
                   </Button>
                 </div>
               )}
@@ -255,13 +257,13 @@ export default function MfaSettings() {
               {status?.mfaEnabled && (
                 <div className="space-y-4 rounded-lg border border-gray-200 p-4">
                   <div>
-                    <h3 className="font-medium text-text-primary">Disable MFA</h3>
+                    <h3 className="font-medium text-text-primary">{t("disableMfa")}</h3>
                     <p className="mt-1 text-sm text-text-secondary">
-                      Enter your password and either a TOTP code or an unused backup code.
+                      {t("disableMfaDesc")}
                     </p>
                   </div>
                   <div>
-                    <Label htmlFor="disable-password">Password</Label>
+                    <Label htmlFor="disable-password">{t("password")}</Label>
                     <Input
                       id="disable-password"
                       type="password"
@@ -270,7 +272,7 @@ export default function MfaSettings() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="disable-code">TOTP or backup code</Label>
+                    <Label htmlFor="disable-code">{t("totpOrBackupCode")}</Label>
                     <Input
                       id="disable-code"
                       value={disableCode}
@@ -283,7 +285,7 @@ export default function MfaSettings() {
                     onClick={handleDisable}
                     disabled={!disableCode || !disablePassword || busyAction !== null}
                   >
-                    {busyAction === "disable" ? "Disabling..." : "Disable MFA"}
+                    {busyAction === "disable" ? t("disabling") : t("disableMfa")}
                   </Button>
                 </div>
               )}
@@ -294,9 +296,9 @@ export default function MfaSettings() {
         <Card className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold text-text-primary">Backup Codes</h2>
+              <h2 className="text-xl font-semibold text-text-primary">{t("backupCodes")}</h2>
               <p className="mt-2 text-sm text-text-secondary">
-                Each code can be used once. Store them offline in a secure place.
+                {t("backupCodesDesc")}
               </p>
             </div>
             {status?.mfaEnabled && (
@@ -306,19 +308,19 @@ export default function MfaSettings() {
                 variant="outline"
                 className="shrink-0"
               >
-                {busyAction === "regenerate" ? "Generating..." : "Regenerate backup codes"}
+                {busyAction === "regenerate" ? t("generating") : t("regenerateBackupCodes")}
               </Button>
             )}
           </div>
 
           {status?.mfaEnabled && (
             <div className="mt-4 space-y-3">
-              <Label htmlFor="regen-code">Confirm with your current 6-digit code</Label>
+              <Label htmlFor="regen-code">{t("confirmCurrentCode")}</Label>
               <Input
                 id="regen-code"
                 value={regenCode}
                 onChange={(e) => setRegenCode(e.target.value)}
-                placeholder="Current 6-digit code"
+                placeholder={t("currentSixDigitCode")}
               />
             </div>
           )}
@@ -326,7 +328,7 @@ export default function MfaSettings() {
           {backupCodes.length > 0 ? (
             <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
               <p className="text-sm font-medium text-amber-900">
-                These codes are displayed once. Save them before leaving this page.
+                {t("codesDisplayedOnce")}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Button
@@ -334,14 +336,14 @@ export default function MfaSettings() {
                   variant="outline"
                   className="bg-white"
                 >
-                  Copy backup codes
+                  {t("copyBackupCodes")}
                 </Button>
                 <Button
                   onClick={handleDownloadBackupCodes}
                   variant="outline"
                   className="bg-white"
                 >
-                  Download backup codes
+                  {t("downloadBackupCodes")}
                 </Button>
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -357,7 +359,7 @@ export default function MfaSettings() {
             </div>
           ) : (
             <p className="mt-6 text-sm text-text-secondary">
-              No backup codes are currently displayed.
+              {t("noBackupCodesDisplayed")}
             </p>
           )}
         </Card>

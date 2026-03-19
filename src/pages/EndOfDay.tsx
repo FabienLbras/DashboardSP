@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -37,6 +38,7 @@ import {
 import { mockEndOfDay } from "../data/mockData";
 
 export default function EndOfDay() {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const { selectedCustomer, setSelectedCustomer, customers } = useCustomerFilter();
   const isAdmin = isSuperAdmin(user?.role);
@@ -186,15 +188,15 @@ export default function EndOfDay() {
         <div>
           <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
             <CalendarClock className="h-8 w-8 text-blue-600" />
-            End of Day
+            {t("endOfDay")}
           </h1>
           <p className="text-muted-foreground">
-            Daily transaction summaries with day-over-day performance
+            {t("dailySummaries")}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleExportCSV}>
           <Download className="h-4 w-4 mr-2" />
-          Export CSV
+          {t("exportCsv")}
         </Button>
       </div>
 
@@ -208,7 +210,7 @@ export default function EndOfDay() {
             >
               <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
               <div className="flex-1">
-                <span className="font-medium">Missing End of Day report — </span>
+                <span className="font-medium">{t("missingEod")} — </span>
                 <span>
                   {new Date(day + "T12:00:00").toLocaleDateString("en-GB", {
                     weekday: "long",
@@ -218,13 +220,13 @@ export default function EndOfDay() {
                   })}
                 </span>
                 <span className="ml-2 text-sm text-amber-600">
-                  No EOD was recorded for this date.
+                  {t("noEodRecorded")}
                 </span>
               </div>
               <button
                 onClick={() => setDismissedAlerts((prev) => [...prev, day])}
                 className="p-1 rounded hover:bg-amber-100 transition-colors flex-shrink-0"
-                aria-label="Dismiss alert"
+                aria-label={t("dismissAlert")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -239,7 +241,7 @@ export default function EndOfDay() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Activity className="w-4 h-4" />
-              Total Transactions
+              {t("totalTransactions")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -252,13 +254,13 @@ export default function EndOfDay() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-500" />
-              Successful
+              {t("fulfilled")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{totalSuccess.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {totalTx > 0 ? Math.round((totalSuccess / totalTx) * 100) : 0}% success rate
+              {totalTx > 0 ? Math.round((totalSuccess / totalTx) * 100) : 0}{t("successPct")}
             </p>
           </CardContent>
         </Card>
@@ -267,13 +269,13 @@ export default function EndOfDay() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <XCircle className="w-4 h-4 text-red-500" />
-              Failed
+              {t("failed")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{totalFailed.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {totalTx > 0 ? Math.round((totalFailed / totalTx) * 100) : 0}% failure rate
+              {totalTx > 0 ? Math.round((totalFailed / totalTx) * 100) : 0}{t("failurePct")}
             </p>
           </CardContent>
         </Card>
@@ -282,7 +284,7 @@ export default function EndOfDay() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
-              Total Revenue
+              {t("totalRevenue")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -297,7 +299,7 @@ export default function EndOfDay() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
+          <CardTitle className="text-lg">{t("filter")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 flex-wrap">
@@ -305,7 +307,7 @@ export default function EndOfDay() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search by EOD ID or date..."
+                  placeholder={t("searchEod")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -314,24 +316,24 @@ export default function EndOfDay() {
             </div>
             <Select value={dateFilter} onValueChange={setDateFilter}>
               <SelectTrigger className="w-44">
-                <SelectValue placeholder="Date range" />
+                <SelectValue placeholder={t("dateRange")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Dates</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="all">{t("allDates")}</SelectItem>
+                <SelectItem value="today">{t("today")}</SelectItem>
+                <SelectItem value="yesterday">{t("yesterday")}</SelectItem>
+                <SelectItem value="week">{t("thisWeek")}</SelectItem>
+                <SelectItem value="month">{t("thisMonth")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Performance" />
+                <SelectValue placeholder={t("performance")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="low_failure">Low Failure (&le;7%)</SelectItem>
-                <SelectItem value="high_failure">High Failure (&gt;7%)</SelectItem>
+                <SelectItem value="all">{t("all")}</SelectItem>
+                <SelectItem value="low_failure">{t("lowFailure")}</SelectItem>
+                <SelectItem value="high_failure">{t("highFailure")}</SelectItem>
               </SelectContent>
             </Select>
             {isAdmin && (
@@ -340,10 +342,10 @@ export default function EndOfDay() {
                 onValueChange={(v) => setSelectedCustomer(v === "all" ? null : (customers.find((c) => String(c.id) === v) ?? null))}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All Customers" />
+                  <SelectValue placeholder={t("allCustomers")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Customers</SelectItem>
+                  <SelectItem value="all">{t("allCustomers")}</SelectItem>
                   {customers.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
                   ))}
@@ -357,9 +359,9 @@ export default function EndOfDay() {
       {/* End of Day Table */}
       <Card>
         <CardHeader>
-          <CardTitle>End of Day Reports</CardTitle>
+          <CardTitle>{t("eodReports")}</CardTitle>
           <CardDescription>
-            {sorted.length} reports — arrows show change vs previous day
+            {sorted.length} {t("reportsArrows")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -367,21 +369,21 @@ export default function EndOfDay() {
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableHead>EOD ID</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Total Tx</TableHead>
-                  <TableHead>Successful</TableHead>
-                  <TableHead>Failed</TableHead>
-                  <TableHead>Avg Transaction</TableHead>
-                  <TableHead>Total Amount</TableHead>
-                  <TableHead>vs Day -1</TableHead>
+                  <TableHead>{t("eodId")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("totalTx")}</TableHead>
+                  <TableHead>{t("fulfilled")}</TableHead>
+                  <TableHead>{t("failed")}</TableHead>
+                  <TableHead>{t("avgTransaction")}</TableHead>
+                  <TableHead>{t("amount")}</TableHead>
+                  <TableHead>{t("vsDay1")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sorted.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                      No reports match your filters
+                      {t("noReportsMatch")}
                     </TableCell>
                   </TableRow>
                 ) : (

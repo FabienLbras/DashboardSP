@@ -10,12 +10,14 @@ import {
 import { ArrowLeft, Loader2, AlertCircle, Plus } from "lucide-react";
 import { CustomerService } from "../services/customerService";
 import { useToast } from "../hooks/useToast";
+import { useLanguage } from "../context/LanguageContext";
 
 type Form = { name: string; email: string; phone: string; address: string; status: "active" | "inactive" };
 
 export default function CustomerNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [form, setForm] = useState<Form>({ name: "", email: "", phone: "", address: "", status: "active" });
   const [saving, setSaving] = useState(false);
@@ -49,18 +51,18 @@ export default function CustomerNew() {
           className="gap-1"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {t("back")}
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">New Customer</h1>
-          <p className="text-muted-foreground text-sm">Add a new customer to the platform</p>
+          <h1 className="text-2xl font-bold text-text-primary">{t("newCustomer")}</h1>
+          <p className="text-muted-foreground text-sm">{t("addCustomerDesc")}</p>
         </div>
       </div>
 
       {/* Form */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Customer Information</CardTitle>
+          <CardTitle className="text-base">{t("customerInformation")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -72,7 +74,7 @@ export default function CustomerNew() {
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">{`${t("name")} *`}</Label>
               <Input
                 id="name"
                 value={form.name}
@@ -83,7 +85,7 @@ export default function CustomerNew() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">{`${t("email")} *`}</Label>
               <Input
                 id="email"
                 type="email"
@@ -96,7 +98,7 @@ export default function CustomerNew() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">{t("phone")}</Label>
                 <Input
                   id="phone"
                   value={form.phone}
@@ -105,7 +107,7 @@ export default function CustomerNew() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status">{t("status")}</Label>
                 <Select
                   value={form.status}
                   onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}
@@ -114,15 +116,15 @@ export default function CustomerNew() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="active">{t("active")}</SelectItem>
+                    <SelectItem value="inactive">{t("inactive")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address">{t("address")}</Label>
               <Input
                 id="address"
                 value={form.address}
@@ -138,13 +140,13 @@ export default function CustomerNew() {
                 onClick={() => navigate("/customers")}
                 disabled={saving}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white gap-2">
                 {saving ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" />Creating…</>
+                  <><Loader2 className="h-4 w-4 animate-spin" />{t("creating")}</>
                 ) : (
-                  <><Plus className="h-4 w-4" />Create Customer</>
+                  <><Plus className="h-4 w-4" />{t("createCustomer")}</>
                 )}
               </Button>
             </div>

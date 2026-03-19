@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "../components/ui/card";
@@ -56,6 +57,7 @@ function SortIcon({ col, sort }: { col: string; sort: { col: string; dir: SortDi
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Reports() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>("transactions");
 
   // ── Date range ───────────────────────────────────────────────────────────────
@@ -381,11 +383,11 @@ export default function Reports() {
       <CardContent className="py-4">
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex items-center gap-2">
-            <Label className="whitespace-nowrap text-sm">From</Label>
+            <Label className="whitespace-nowrap text-sm">{t("from")}</Label>
             <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="whitespace-nowrap text-sm">To</Label>
+            <Label className="whitespace-nowrap text-sm">{t("to")}</Label>
             <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
           </div>
           {[
@@ -411,17 +413,17 @@ export default function Reports() {
         <div>
           <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
             <BarChart2 className="h-8 w-8 text-blue-600" />
-            Reports
+            {t("reportsTitle")}
           </h1>
-          <p className="text-muted-foreground">Financial analytics, charts and statistics</p>
+          <p className="text-muted-foreground">{t("financialAnalytics")}</p>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit">
-        {tabBtn("transactions", "Transactions", <Activity className="h-4 w-4" />)}
-        {tabBtn("eod", "End of Day", <FileText className="h-4 w-4" />)}
-        {tabBtn("statistics", "Statistics", <TrendingUp className="h-4 w-4" />)}
+        {tabBtn("transactions", t("transactions"), <Activity className="h-4 w-4" />)}
+        {tabBtn("eod", t("endOfDay"), <FileText className="h-4 w-4" />)}
+        {tabBtn("statistics", t("statistics"), <TrendingUp className="h-4 w-4" />)}
       </div>
 
       {/* ── TRANSACTIONS TAB ─────────────────────────────────────────────────── */}
@@ -432,12 +434,12 @@ export default function Reports() {
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { label: "Total Revenue", value: fmt(txKpis.total), icon: <DollarSign className="h-4 w-4 text-blue-500" /> },
-              { label: "Transactions", value: txKpis.count, icon: <Activity className="h-4 w-4 text-indigo-500" /> },
-              { label: "Avg. Amount", value: fmt(txKpis.avg), icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
-              { label: "Completed", value: txKpis.completed, icon: <CheckCircle className="h-4 w-4 text-green-500" />, color: "text-green-600" },
-              { label: "Failed", value: txKpis.failed, icon: <XCircle className="h-4 w-4 text-red-500" />, color: "text-red-600" },
-              { label: "Refunded", value: txKpis.refunded, icon: <TrendingDown className="h-4 w-4 text-orange-500" />, color: "text-orange-600" },
+              { label: t("totalRevenue"), value: fmt(txKpis.total), icon: <DollarSign className="h-4 w-4 text-blue-500" /> },
+              { label: t("transactions"), value: txKpis.count, icon: <Activity className="h-4 w-4 text-indigo-500" /> },
+              { label: t("avgAmount"), value: fmt(txKpis.avg), icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
+              { label: t("completed"), value: txKpis.completed, icon: <CheckCircle className="h-4 w-4 text-green-500" />, color: "text-green-600" },
+              { label: t("failed"), value: txKpis.failed, icon: <XCircle className="h-4 w-4 text-red-500" />, color: "text-red-600" },
+              { label: t("refunded"), value: txKpis.refunded, icon: <TrendingDown className="h-4 w-4 text-orange-500" />, color: "text-orange-600" },
             ].map((k) => (
               <Card key={k.label} className="hover:shadow-md transition-shadow">
                 <CardContent className="pt-4 pb-3">
@@ -452,8 +454,8 @@ export default function Reports() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle>Revenue over time</CardTitle>
-                <CardDescription>Daily revenue and transaction count</CardDescription>
+                <CardTitle>{t("revenueOverTime")}</CardTitle>
+                <CardDescription>{t("dailyRevenueCount")}</CardDescription>
               </div>
               <div className="flex gap-2">
                 {(["area", "bar", "line"] as const).map((t) => (
@@ -465,20 +467,20 @@ export default function Reports() {
             </CardHeader>
             <CardContent>
               {txChartData.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No data for selected range</div>
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">{t("noDataForRange")}</div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
                   {renderChart(
                     txChartType,
                     txChartData,
                     [
-                      { key: "revenue", color: "#3b82f6", label: "Revenue ($)" },
-                      { key: "count", color: "#10b981", label: "Transactions" },
+                      { key: "revenue", color: "#3b82f6", label: `${t("revenue")} ($)` },
+                      { key: "count", color: "#10b981", label: t("transactions") },
                     ],
                     "date",
                     (v) => `$${v.toLocaleString()}`,
-                    "Date",
-                    "Amount / Count",
+                    t("date"),
+                    `${t("amount")} / ${t("count")}`,
                   )}
                 </ResponsiveContainer>
               )}
@@ -488,10 +490,10 @@ export default function Reports() {
           {/* Payment Method Breakdown */}
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
-              <CardHeader><CardTitle>Payment Methods</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t("paymentMethods")}</CardTitle></CardHeader>
               <CardContent>
                 {txMethodBreakdown.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8 text-sm">No data</div>
+                  <div className="text-center text-muted-foreground py-8 text-sm">{t("noData")}</div>
                 ) : (
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
@@ -506,7 +508,7 @@ export default function Reports() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle>Amount by Method</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{t("amountByMethod")}</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-3 mt-1">
                   {txMethodBreakdown.map((m, i) => {
@@ -523,7 +525,7 @@ export default function Reports() {
                       </div>
                     );
                   })}
-                  {txMethodBreakdown.length === 0 && <div className="text-center text-muted-foreground py-8 text-sm">No data</div>}
+                  {txMethodBreakdown.length === 0 && <div className="text-center text-muted-foreground py-8 text-sm">{t("noData")}</div>}
                 </div>
               </CardContent>
             </Card>
@@ -533,32 +535,32 @@ export default function Reports() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Transaction Details</CardTitle>
-                <CardDescription>{filteredTx.length} transactions</CardDescription>
+                <CardTitle>{t("transactionDetails")}</CardTitle>
+                <CardDescription>{filteredTx.length} {t("transactions")}</CardDescription>
               </div>
               <Button onClick={exportTxCsv} variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />Export CSV
+                <Download className="h-4 w-4" />{t("exportCsv")}
               </Button>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-3 mb-4">
                 <div className="relative flex-1 min-w-48">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search ID, customer, location..." value={txSearch} onChange={(e) => setTxSearch(e.target.value)} className="pl-9" />
+                  <Input placeholder={t("searchIdCustomer")} value={txSearch} onChange={(e) => setTxSearch(e.target.value)} className="pl-9" />
                 </div>
                 <Select value={txStatus} onValueChange={setTxStatus}>
                   <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
-                    <SelectItem value="refunded">Refunded</SelectItem>
+                    <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                    <SelectItem value="completed">{t("completed")}</SelectItem>
+                    <SelectItem value="failed">{t("failed")}</SelectItem>
+                    <SelectItem value="refunded">{t("refunded")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={txMethod} onValueChange={setTxMethod}>
                   <SelectTrigger className="w-44"><SelectValue placeholder="Method" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All methods</SelectItem>
+                    <SelectItem value="all">{t("allMethods")}</SelectItem>
                     {["Visa", "Mastercard", "American Express", "Apple Pay", "Google Pay"].map((m) => (
                       <SelectItem key={m} value={m}>{m}</SelectItem>
                     ))}
@@ -571,12 +573,12 @@ export default function Reports() {
                     <TableRow>
                       {[
                         { col: "id", label: "ID" },
-                        { col: "date", label: "Date" },
-                        { col: "customer", label: "Customer" },
-                        { col: "location", label: "Location" },
-                        { col: "paymentMethod", label: "Method" },
-                        { col: "status", label: "Status" },
-                        { col: "amount", label: "Amount" },
+                        { col: "date", label: t("date") },
+                        { col: "customer", label: t("customer") },
+                        { col: "location", label: t("location") },
+                        { col: "paymentMethod", label: t("paymentMethod") },
+                        { col: "status", label: t("status") },
+                        { col: "amount", label: t("amount") },
                       ].map(({ col, label }) => (
                         <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" onClick={() => toggleSort(col, txSort, setTxSort)}>
                           {label}<SortIcon col={col} sort={txSort} />
@@ -586,7 +588,7 @@ export default function Reports() {
                   </TableHeader>
                   <TableBody>
                     {filteredTx.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">No transactions match filters</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">{t("noTransactionsMatchFilters")}</TableCell></TableRow>
                     ) : filteredTx.map((t) => (
                       <TableRow key={t.id}>
                         <TableCell className="font-mono text-xs">{t.id}</TableCell>
@@ -620,11 +622,11 @@ export default function Reports() {
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
-              { label: "Total Revenue", value: fmt(eodKpis.totalRev), icon: <DollarSign className="h-4 w-4 text-blue-500" /> },
-              { label: "Total Transactions", value: eodKpis.totalTx, icon: <Activity className="h-4 w-4 text-indigo-500" /> },
-              { label: "Avg Daily Revenue", value: fmt(eodKpis.avgRev), icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
-              { label: "Total Failed", value: eodKpis.totalFailed, icon: <XCircle className="h-4 w-4 text-red-500" />, color: "text-red-600" },
-              { label: "Days Reported", value: eodKpis.days, icon: <FileText className="h-4 w-4 text-purple-500" /> },
+              { label: t("totalRevenue"), value: fmt(eodKpis.totalRev), icon: <DollarSign className="h-4 w-4 text-blue-500" /> },
+              { label: t("totalTransactions"), value: eodKpis.totalTx, icon: <Activity className="h-4 w-4 text-indigo-500" /> },
+              { label: t("avgDailyRevenue"), value: fmt(eodKpis.avgRev), icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
+              { label: t("totalFailed"), value: eodKpis.totalFailed, icon: <XCircle className="h-4 w-4 text-red-500" />, color: "text-red-600" },
+              { label: t("daysReported"), value: eodKpis.days, icon: <FileText className="h-4 w-4 text-purple-500" /> },
             ].map((k) => (
               <Card key={k.label} className="hover:shadow-md transition-shadow">
                 <CardContent className="pt-4 pb-3">
@@ -639,16 +641,16 @@ export default function Reports() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle>End of Day Trend</CardTitle>
-                <CardDescription>Daily financial performance</CardDescription>
+                <CardTitle>{t("eodTrend")}</CardTitle>
+                <CardDescription>{t("dailyFinancialPerf")}</CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Select value={eodChartMetric} onValueChange={(v) => setEodChartMetric(v as any)}>
                   <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="totalAmount">Revenue</SelectItem>
-                    <SelectItem value="totalTransactions">Transactions</SelectItem>
-                    <SelectItem value="failedTransactions">Failed Transactions</SelectItem>
+                    <SelectItem value="totalAmount">{t("revenue")}</SelectItem>
+                    <SelectItem value="totalTransactions">{t("transactions")}</SelectItem>
+                    <SelectItem value="failedTransactions">{t("failedTransactions")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {(["area", "bar", "line"] as const).map((t) => (
@@ -660,7 +662,7 @@ export default function Reports() {
             </CardHeader>
             <CardContent>
               {eodChartData.length === 0 ? (
-                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No data for selected range</div>
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">{t("noDataForRange")}</div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
                   {renderChart(
@@ -669,12 +671,12 @@ export default function Reports() {
                     [{
                       key: eodChartMetric,
                       color: eodChartMetric === "failedTransactions" ? "#ef4444" : "#3b82f6",
-                      label: eodChartMetric === "totalAmount" ? "Revenue ($)" : eodChartMetric === "totalTransactions" ? "Transactions" : "Failed Tx",
+                      label: eodChartMetric === "totalAmount" ? `${t("revenue")} ($)` : eodChartMetric === "totalTransactions" ? t("transactions") : t("failedTransactions"),
                     }],
                     "date",
                     eodChartMetric === "totalAmount" ? (v) => `$${v.toLocaleString()}` : undefined,
-                    "Date",
-                    eodChartMetric === "totalAmount" ? "Revenue ($)" : "Count",
+                    t("date"),
+                    eodChartMetric === "totalAmount" ? `${t("revenue")} ($)` : t("count"),
                   )}
                 </ResponsiveContainer>
               )}
@@ -685,18 +687,18 @@ export default function Reports() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>EOD Details</CardTitle>
+                <CardTitle>{t("eodDetails")}</CardTitle>
                 <CardDescription>{filteredEod.length} records with day-over-day comparison</CardDescription>
               </div>
               <Button onClick={exportEodCsv} variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />Export CSV
+                <Download className="h-4 w-4" />{t("exportCsv")}
               </Button>
             </CardHeader>
             <CardContent>
               <div className="flex gap-3 mb-4">
                 <div className="relative flex-1 min-w-48">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search EOD ID or date..." value={eodSearch} onChange={(e) => setEodSearch(e.target.value)} className="pl-9" />
+                  <Input placeholder={t("searchEodId")} value={eodSearch} onChange={(e) => setEodSearch(e.target.value)} className="pl-9" />
                 </div>
               </div>
               <div className="rounded-md border overflow-auto">
@@ -704,24 +706,24 @@ export default function Reports() {
                   <TableHeader>
                     <TableRow>
                       {[
-                        { col: "id", label: "EOD ID" },
-                        { col: "date", label: "Date" },
-                        { col: "totalTransactions", label: "Total Tx" },
-                        { col: "successTransactions", label: "Success" },
-                        { col: "failedTransactions", label: "Failed" },
-                        { col: "totalAmount", label: "Revenue" },
-                        { col: "averageTransaction", label: "Avg Tx" },
+                        { col: "id", label: t("eodId") },
+                        { col: "date", label: t("date") },
+                        { col: "totalTransactions", label: t("totalTx") },
+                        { col: "successTransactions", label: t("success") },
+                        { col: "failedTransactions", label: t("failed") },
+                        { col: "totalAmount", label: t("revenue") },
+                        { col: "averageTransaction", label: t("avgTx") },
                       ].map(({ col, label }) => (
                         <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" onClick={() => toggleSort(col, eodSort, setEodSort)}>
                           {label}<SortIcon col={col} sort={eodSort} />
                         </TableHead>
                       ))}
-                      <TableHead>vs Prev Day</TableHead>
+                      <TableHead>{t("vsPrevDay")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {eodWithDelta.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">No records match filters</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">{t("noRecordsMatch")}</TableCell></TableRow>
                     ) : eodWithDelta.map((e) => {
                       const failRate = e.totalTransactions > 0 ? (e.failedTransactions / e.totalTransactions) * 100 : 0;
                       return (
@@ -771,14 +773,14 @@ export default function Reports() {
           <div className="grid md:grid-cols-3 gap-4">
             <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
               <CardContent className="pt-4 pb-4">
-                <div className="text-xs text-green-700 font-medium uppercase mb-1">Best performing day</div>
+                <div className="text-xs text-green-700 font-medium uppercase mb-1">{t("bestPerformingDay")}</div>
                 <div className="text-2xl font-bold text-green-800">{DAYS[DAY_SHORT.indexOf(stats.best?.day)]}</div>
                 <div className="text-sm text-green-700 mt-0.5">Avg {fmt(stats.best?.avgRevenue || 0)} / day</div>
               </CardContent>
             </Card>
             <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
               <CardContent className="pt-4 pb-4">
-                <div className="text-xs text-red-700 font-medium uppercase mb-1">Weakest day</div>
+                <div className="text-xs text-red-700 font-medium uppercase mb-1">{t("weakestDay")}</div>
                 <div className="text-2xl font-bold text-red-800">{DAYS[DAY_SHORT.indexOf(stats.worst?.day)]}</div>
                 <div className="text-sm text-red-700 mt-0.5">
                   Avg {fmt(stats.worst?.avgRevenue || 0)} / day
@@ -790,8 +792,8 @@ export default function Reports() {
             </Card>
             <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
               <CardContent className="pt-4 pb-4">
-                <div className="text-xs text-blue-700 font-medium uppercase mb-1">Weekday vs Weekend</div>
-                <div className="text-2xl font-bold text-blue-800">{stats.weekdayRev > stats.weekendRev ? "Weekdays higher" : "Weekends higher"}</div>
+                <div className="text-xs text-blue-700 font-medium uppercase mb-1">{t("weekdayVsWeekend")}</div>
+                <div className="text-2xl font-bold text-blue-800">{stats.weekdayRev > stats.weekendRev ? t("weekdaysHigher") : t("weekendsHigher")}</div>
                 <div className="text-sm text-blue-700 mt-0.5">
                   Weekday avg {fmt(stats.weekdayRev)} · Weekend avg {fmt(stats.weekendRev)}
                 </div>
@@ -802,7 +804,7 @@ export default function Reports() {
           {/* Avg Revenue by Day of Week */}
           <Card>
             <CardHeader>
-              <CardTitle>Average Daily Revenue by Day of Week</CardTitle>
+              <CardTitle>{t("avgRevByDayOfWeek")}</CardTitle>
               <CardDescription>Based on all available EOD data</CardDescription>
             </CardHeader>
             <CardContent>
@@ -812,7 +814,7 @@ export default function Reports() {
                   <XAxis dataKey="day" tick={{ fontSize: 12 }} />
                   <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} width={60} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => fmt(v)} labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
-                  <Bar dataKey="avgRevenue" name="Avg Revenue" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="avgRevenue" name={t("avgRevenue")} radius={[4, 4, 0, 0]}>
                     {stats.avgRevByDow.map((entry, i) => (
                       <Cell
                         key={i}
@@ -829,7 +831,7 @@ export default function Reports() {
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Avg Transactions by Day of Week</CardTitle>
+                <CardTitle>{t("avgTxByDayOfWeek")}</CardTitle>
                 <CardDescription>Transaction volume patterns</CardDescription>
               </CardHeader>
               <CardContent>
@@ -839,7 +841,7 @@ export default function Reports() {
                     <XAxis dataKey="day" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
-                    <Bar dataKey="avgTransactions" name="Avg Transactions" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="avgTransactions" name={t("avgTransactions")} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
                 <div className="mt-3 grid grid-cols-7 gap-1">
@@ -856,7 +858,7 @@ export default function Reports() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Failure Rate by Day of Week</CardTitle>
+                <CardTitle>{t("failureRateByDay")}</CardTitle>
                 <CardDescription>% failed transactions per day</CardDescription>
               </CardHeader>
               <CardContent>
@@ -866,7 +868,7 @@ export default function Reports() {
                     <XAxis dataKey="day" tick={{ fontSize: 12 }} />
                     <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
                     <Tooltip formatter={(v: number) => `${v}%`} labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
-                    <Bar dataKey="failRate" name="Failure Rate %" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="failRate" name={t("failureRate")} fill="#ef4444" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -876,7 +878,7 @@ export default function Reports() {
           {/* Monthly Trend */}
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Revenue Trend</CardTitle>
+              <CardTitle>{t("monthlyRevenueTrend")}</CardTitle>
               <CardDescription>Aggregated revenue by month</CardDescription>
             </CardHeader>
             <CardContent>
@@ -886,7 +888,7 @@ export default function Reports() {
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                   <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} width={70} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => fmt(v)} />
-                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
+                  <Area type="monotone" dataKey="revenue" name={t("revenue")} stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -895,19 +897,19 @@ export default function Reports() {
           {/* Full breakdown table */}
           <Card>
             <CardHeader>
-              <CardTitle>Day of Week Breakdown</CardTitle>
+              <CardTitle>{t("dayOfWeekBreakdown")}</CardTitle>
               <CardDescription>Detailed stats per day of week</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Day</TableHead>
-                    <TableHead>Avg Revenue</TableHead>
-                    <TableHead>Avg Transactions</TableHead>
-                    <TableHead>Failure Rate</TableHead>
-                    <TableHead>vs. Best Day</TableHead>
-                    <TableHead>Sample Days</TableHead>
+                    <TableHead>{t("date")}</TableHead>
+                    <TableHead>{t("avgRevenue")}</TableHead>
+                    <TableHead>{t("avgTransactions")}</TableHead>
+                    <TableHead>{t("failureRate")}</TableHead>
+                    <TableHead>{t("vsBestDay")}</TableHead>
+                    <TableHead>{t("sampleDays")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

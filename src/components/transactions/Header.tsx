@@ -1,4 +1,3 @@
-import React from 'react'
 import { Button } from '../ui/button'
 import { Download, Loader2, RefreshCw } from 'lucide-react'
 
@@ -8,6 +7,7 @@ interface HeaderProps {
   handleExportPDF: () => void;
   loading: boolean;
   displayTransactions: any[];
+  canExport: boolean;
 }
 
 const Header = ({
@@ -15,7 +15,8 @@ const Header = ({
     handleExportCSV,
     handleExportPDF,
     loading,
-    displayTransactions
+    displayTransactions,
+    canExport,
 }: HeaderProps) => {
     return (
         <div className="flex items-center justify-between">
@@ -37,24 +38,28 @@ const Header = ({
                     )}
                     Refresh
                 </Button>
-                <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleExportCSV}
-                    disabled={loading || displayTransactions.length === 0}
-                >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                </Button>
-                <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleExportPDF}
-                    disabled={loading || displayTransactions.length === 0}
-                >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export PDF
-                </Button>
+                {canExport && (
+                  <>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportCSV}
+                        disabled={loading || displayTransactions.length === 0}
+                    >
+                        <Download className="h-4 w-4 mr-2" />
+                        Export CSV
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportPDF}
+                        disabled={loading || displayTransactions.length === 0}
+                    >
+                        <Download className="h-4 w-4 mr-2" />
+                        Export PDF
+                    </Button>
+                  </>
+                )}
             </div>
         </div>
     )

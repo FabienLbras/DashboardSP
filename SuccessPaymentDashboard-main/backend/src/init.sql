@@ -4,7 +4,20 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   name VARCHAR(255) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role VARCHAR(50) DEFAULT 'user',
+  role VARCHAR(50) DEFAULT 'front_office_operator',
+  created_at TIMESTAMP DEFAULT NOW(),
+  mfa_enabled BOOLEAN DEFAULT FALSE,
+  mfa_secret VARCHAR(255),
+  mfa_pending_secret VARCHAR(255)
+);
+
+-- MFA backup codes table
+CREATE TABLE IF NOT EXISTS mfa_backup_codes (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash VARCHAR(255) NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  used_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -39,7 +52,13 @@ CREATE TABLE IF NOT EXISTS terminals (
 -- Seed: default admin user (password: Admin123)
 -- Hash generated via: node -e "require('bcryptjs').hash('Admin123',10).then(console.log)"
 INSERT INTO users (email, name, password_hash, role)
-VALUES ('admin@dashboard.local', 'Admin', '$2a$10$pIj.rJ0xjsZNcCp2RHjdZODkXYBy8QcU4U43MbcwZkOyQjiGxKI4K', 'admin')
+VALUES ('admin@dashboard.local', 'Admin', '$2a$10$pIj.rJ0xjsZNcCp2RHjdZODkXYBy8QcU4U43MbcwZkOyQjiGxKI4K', 'hotel_manager')
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO users (email, name, password_hash, role)
+VALUES
+  ('frontoffice.manager@dashboard.local', 'Front Office Manager', '$2a$10$pIj.rJ0xjsZNcCp2RHjdZODkXYBy8QcU4U43MbcwZkOyQjiGxKI4K', 'front_office_manager'),
+  ('frontoffice.operator@dashboard.local', 'Front Office Operator', '$2a$10$pIj.rJ0xjsZNcCp2RHjdZODkXYBy8QcU4U43MbcwZkOyQjiGxKI4K', 'front_office_operator')
 ON CONFLICT (email) DO NOTHING;
 
 -- Seed: sample terminals

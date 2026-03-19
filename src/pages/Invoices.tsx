@@ -18,9 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { 
+import {
   Plus,
-  Download, 
+  Download,
   Search,
   MoreHorizontal,
   Eye,
@@ -32,6 +32,7 @@ import {
   DollarSign,
   AlertTriangle
 } from "lucide-react";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +43,6 @@ import { mockInvoices } from "../data/mockData";
 import { InvoiceCreateDialog } from "../components/invoices/InvoiceCreateDialog";
 import { InvoiceDetailsDialog } from "../components/invoices/InvoiceDetailsDialog";
 import { ReminderDialog } from "../components/invoices/ReminderDialog";
-import { ReckonhubIntegrationDialog } from "../components/invoices/ReckonhubIntegrationDialog";
 import { useToast } from "../hooks/useToast";
 
 export default function Invoices() {
@@ -52,7 +52,6 @@ export default function Invoices() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
-  const [reckonhubDialogOpen, setReckonhubDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
   const filteredInvoices = mockInvoices.filter(invoice => {
@@ -92,13 +91,6 @@ export default function Invoices() {
     });
   };
 
-  const handleSendToReckonhub = (invoice: any) => {
-    toast({
-      title: "Sending to Reckonhub",
-      description: `Invoice #${invoice.number} has been sent to Reckonhub for processing.`,
-    });
-  };
-
   const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + invoice.amount, 0);
   const paidAmount = filteredInvoices.filter(inv => inv.status === "paid").reduce((sum, invoice) => sum + invoice.amount, 0);
   const pendingAmount = filteredInvoices.filter(inv => inv.status === "pending").reduce((sum, invoice) => sum + invoice.amount, 0);
@@ -113,10 +105,6 @@ export default function Invoices() {
           <p className="text-muted-foreground">Create, manage and track invoices with PDF export</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setReckonhubDialogOpen(true)} className="hover:scale-105 transition-transform">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Reckonhub Integration
-          </Button>
           <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
             <Plus className="h-4 w-4 mr-2" />
             Create Invoice
@@ -289,12 +277,6 @@ export default function Invoices() {
                           <Send className="h-4 w-4 mr-2" />
                           Send Reminder
                         </DropdownMenuItem>
-                        {(invoice.status === "pending" || invoice.status === "overdue") && (
-                          <DropdownMenuItem onClick={() => handleSendToReckonhub(invoice)}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Send to Reckonhub
-                          </DropdownMenuItem>
-                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -302,57 +284,6 @@ export default function Invoices() {
               ))}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
-
-      {/* Integration Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Reckonhub Integration</CardTitle>
-          <CardDescription>
-            Seamlessly sync your invoices with Reckonhub accounting system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-4">
-              <h4 className="font-medium">Features</h4>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm">Automatic PDF generation</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm">Real-time sync with accounting</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm">Automated payment tracking</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm">Multi-currency support</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <h4 className="font-medium">Integration Status</h4>
-              <div className="p-4 border rounded-lg bg-blue-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-blue-900">Ready to Connect</p>
-                    <p className="text-sm text-blue-700">Click to set up Reckonhub integration</p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Connect
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -374,10 +305,6 @@ export default function Invoices() {
         invoice={selectedInvoice}
       />
       
-      <ReckonhubIntegrationDialog 
-        open={reckonhubDialogOpen} 
-        onOpenChange={setReckonhubDialogOpen}
-      />
     </div>
   );
 }

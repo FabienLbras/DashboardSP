@@ -2,6 +2,11 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Search } from "lucide-react";
+import { useCustomerFilter } from "../context/CustomerFilterContext";
+import { isSuperAdmin } from "../lib/permissions";
 import {
   Table,
   TableBody,
@@ -10,70 +15,32 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { 
-  Plus, 
-  Settings,
+import {
+  Plus,
   Wifi,
   WifiOff,
-  MoreHorizontal,
-  Activity,
-  Power,
-  PowerOff
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "../components/ui/dropdown-menu";
 import { mockTerminals } from "../data/mockData";
-import { useToast } from "../hooks/useToast";
-import { TerminalConfigDialog } from "../components/terminals/TerminalConfigDialog";
-import TerminalActivityDialog from "../components/terminals/TerminalActivityDialog";
+import { useAuth } from "../context/AuthContext";
+import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
 export default function Terminals() {
+  const { user } = useAuth();
+  const { selectedCustomer, setSelectedCustomer, customers } = useCustomerFilter();
+  const isAdmin = isSuperAdmin(user?.role);
   const [terminals, setTerminals] = useState(mockTerminals);
-  const [configDialog, setConfigDialog] = useState<{ open: boolean; terminal: any }>({ 
-    open: false, 
-    terminal: null 
-  });
-  const [activityDialog, setActivityDialog] = useState<{ open: boolean; terminal: any }>({ 
-    open: false, 
-    terminal: null 
-  });
-  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const canManageTerminals = hasPermission(user?.role, APP_PERMISSIONS.MANAGE_TERMINALS);
 
-  const toggleTerminalStatus = (terminalId: string) => {
-    setTerminals(prev => prev.map(terminal => {
-      if (terminal.id === terminalId) {
-        const newStatus = terminal.status === "online" ? "offline" : "online";
-        toast({
-          title: `Terminal ${newStatus}`,
-          description: `Terminal ${terminalId} has been ${newStatus === "online" ? "activated" : "deactivated"}`,
-        });
-        return { 
-          ...terminal, 
-          status: newStatus,
-          lastSeen: newStatus === "online" ? new Date().toISOString() : terminal.lastSeen
-        };
-      }
-      return terminal;
-    }));
-  };
-
-  const handleConfigSave = (terminalId: string, config: any) => {
-    setTerminals(prev => prev.map(terminal => {
-      if (terminal.id === terminalId) {
-        return { ...terminal, name: config.name, location: config.location };
-      }
-      return terminal;
-    }));
-    toast({
-      title: "Configuration saved",
-      description: `Settings for terminal ${terminalId} have been updated`,
-    });
-  };
+  const filteredTerminals = terminals.filter((t) => {
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    return (
+      t.id.toLowerCase().includes(q) ||
+      t.name.toLowerCase().includes(q) ||
+      t.location.toLowerCase().includes(q)
+    );
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -104,10 +71,12 @@ export default function Terminals() {
           <h1 className="text-3xl font-bold text-text-primary">Terminal Management</h1>
           <p className="text-muted-foreground">Monitor and manage all connected payment terminals</p>
         </div>
-        <Button className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Terminal
-        </Button>
+        {canManageTerminals && (
+          <Button className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Terminal
+          </Button>
+        )}
       </div>
 
       {/* Overview Cards */}
@@ -159,12 +128,48 @@ export default function Terminals() {
         </Card>
       </div>
 
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 flex-wrap">
+            <div className="flex-1 min-w-64 relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by ID, name or location..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {isAdmin && (
+              <Select
+                value={selectedCustomer ? String(selectedCustomer.id) : "all"}
+                onValueChange={(v) => setSelectedCustomer(v === "all" ? null : (customers.find((c) => String(c.id) === v) ?? null))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All Customers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Terminals Table */}
       <Card>
         <CardHeader>
           <CardTitle>Connected Terminals</CardTitle>
           <CardDescription>
-            All payment terminals and their current status
+            {filteredTerminals.length} terminal{filteredTerminals.length !== 1 ? "s" : ""} found
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -178,11 +183,10 @@ export default function Terminals() {
                 <TableHead>Last Seen</TableHead>
                 <TableHead>Today's Transactions</TableHead>
                 <TableHead>Today's Revenue</TableHead>
-                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {terminals.map((terminal) => (
+              {filteredTerminals.map((terminal) => (
                 <TableRow key={terminal.id}>
                   <TableCell className="font-medium">{terminal.id}</TableCell>
                   <TableCell>{terminal.name}</TableCell>
@@ -194,58 +198,6 @@ export default function Terminals() {
                   <TableCell>{terminal.todayTransactions}</TableCell>
                   <TableCell className="font-medium">
                     ${Number(terminal.todayRevenue).toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant={terminal.status === "online" ? "destructive" : "default"}
-                        className={`${terminal.status === "online" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"} text-white`}
-                        size="sm"
-                        onClick={() => toggleTerminalStatus(terminal.id)}
-                      >
-                        {terminal.status === "online" ? (
-                          <>
-                            <PowerOff className="h-4 w-4 mr-1" />
-                            Deactivate
-                          </>
-                        ) : (
-                          <>
-                            <Power className="h-4 w-4 mr-1" />
-                            Activate
-                          </>
-                        )}
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            onClick={() => setConfigDialog({ open: true, terminal })}
-                          >
-                            <Settings className="h-4 w-4 mr-2" />
-                            Configure
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => setActivityDialog({ open: true, terminal })}
-                          >
-                            <Activity className="h-4 w-4 mr-2" />
-                            View Activity
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {terminal.status === "offline" && (
-                            <DropdownMenuItem 
-                              onClick={() => toggleTerminalStatus(terminal.id)}
-                            >
-                              <Wifi className="h-4 w-4 mr-2" />
-                              Reconnect
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -299,19 +251,6 @@ export default function Terminals() {
         </CardContent>
       </Card>
 
-      {/* Dialogs */}
-      <TerminalConfigDialog
-        terminal={configDialog.terminal}
-        open={configDialog.open}
-        onOpenChange={(open) => setConfigDialog({ open, terminal: null })}
-        onSave={handleConfigSave}
-      />
-
-      <TerminalActivityDialog
-        terminal={activityDialog.terminal}
-        open={activityDialog.open}
-        onOpenChange={(open) => setActivityDialog({ open, terminal: null })}
-      />
     </div>
   );
 }

@@ -27,8 +27,13 @@ import autoTable from 'jspdf-autotable';
 import Header from "../components/transactions/Header";
 import TransactionFilters from "../components/transactions/TransactionFilters";
 import TransactionActions from "../components/transactions/TransactionActions";
+import { useAuth } from "../context/AuthContext";
+import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
+
+
 
 export default function Transactions() {
+  const { user } = useAuth();
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -39,6 +44,7 @@ export default function Transactions() {
 
   const { fetchTransactions, transactions, loading } = useTransactions();
   const { toast } = useToast();
+  const canExportReports = hasPermission(user?.role, APP_PERMISSIONS.EXPORT_REPORTS);
 
   useEffect(() => {
     fetchTransactions();
@@ -404,6 +410,7 @@ export default function Transactions() {
         handleExportPDF={handleExportPDF}
         loading={loading}
         displayTransactions={displayTransactions}
+        canExport={canExportReports}
       />
 
       {/* Error Alert */}

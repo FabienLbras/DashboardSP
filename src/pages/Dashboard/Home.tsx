@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import TransactionMetrics from "../../components/ecommerce/TransactionMetrics";
 import TransactionsChart from "../../components/ecommerce/TransactionsChart";
 import StatisticsChart from "../../components/ecommerce/StatisticsChart";
@@ -9,15 +10,20 @@ import { Button } from "../../components/ui/button";
 import { useAuth } from "../../context/AuthContext";
 import { KPICard } from "../../components/dashboard/KPICard";
 import { mockKPIs, mockPaymentMethodsData, mockRevenueData, mockLocationData } from "../../data/mockData";
-import { 
-  DollarSign, 
-  CreditCard, 
-  TrendingUp, 
+import AuthService from "../../services/authService";
+import { useNavigate } from "react-router-dom";
+import {
+  DollarSign,
+  CreditCard,
+  TrendingUp,
   AlertTriangle,
   Download,
   Eye,
+  ShieldAlert,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { APP_PERMISSIONS, hasPermission } from "../../lib/permissions";
 import { 
   BarChart, 
   Bar, 
@@ -36,7 +42,21 @@ import {
 const COLORS = ['hsl(218, 89%, 51%)', 'hsl(28, 95%, 58%)', '#8884d8', '#82ca9d', '#ffc658'];
 export default function Home() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const canGenerateReports = hasPermission(user?.role, APP_PERMISSIONS.GENERATE_REPORTS);
   const changePercentage = ((mockKPIs.todayRevenue - mockKPIs.yesterdayRevenue) / mockKPIs.yesterdayRevenue * 100);
+
+  const [mfaDisabled, setMfaDisabled] = useState(false);
+  const [mfaBannerDismissed, setMfaBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    AuthService.getMfaStatus()
+      .then((status) => {
+        if (!status.mfaEnabled) setMfaDisabled(true);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <>
       <div className="flex items-center justify-between mb-4">
@@ -44,21 +64,50 @@ export default function Home() {
           <h1 className="text-3xl font-bold text-text-primary">Payment Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, {user?.name}. Here's your hotel's payment overview.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
-          <Button size="sm" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
-            <Eye className="h-4 w-4 mr-2" />
-            View Details
-          </Button>
-        </div>
+        {canGenerateReports && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export Report
+            </Button>
+            <Button size="sm" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+              <Eye className="h-4 w-4 mr-2" />
+              View Details
+            </Button>
+          </div>
+        )}
       </div>
       <PageMeta
-        title="React.js Transactions Dashboard | TailAdmin - React.js Admin Dashboard Template"
-        description="This is the Transactions Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="SP Dashboard"
+        description="Success Payment Dashboard"
       />
+
+      {/* MFA Warning Banner */}
+      {mfaDisabled && !mfaBannerDismissed && (
+        <div className="flex items-center justify-between gap-3 mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="h-5 w-5 shrink-0" />
+            <p className="text-sm font-medium">
+              Your account is not protected by two-factor authentication.{" "}
+              <button
+                onClick={() => navigate("/profile")}
+                className="underline underline-offset-2 hover:no-underline font-semibold"
+              >
+                Enable MFA now
+              </button>{" "}
+              to secure your account.
+            </p>
+          </div>
+          <button
+            onClick={() => setMfaBannerDismissed(true)}
+            className="shrink-0 rounded p-1 hover:bg-amber-100 dark:hover:bg-amber-900"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
         <KPICard

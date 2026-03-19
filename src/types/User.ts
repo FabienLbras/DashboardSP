@@ -3,4 +3,5 @@ export interface ExtendedUser {
   email: string | null;
   firstName?: string;
   lastName?: string;
+  role?: string;
 }

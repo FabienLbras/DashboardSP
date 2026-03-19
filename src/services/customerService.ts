@@ -33,12 +33,20 @@ export interface Property {
   created_at: string;
 }
 
+export interface PropertyRole {
+  property_id: number;
+  property_name: string;
+  property_type: string;
+  role: string;
+}
+
 export interface CustomerUser {
   id: number;
   email: string;
   name: string;
   role: string;
   created_at: string;
+  property_roles: PropertyRole[];
 }
 
 export interface CustomerDetail extends Customer {
@@ -87,12 +95,12 @@ export const CustomerService = {
   },
 
   // Users
-  async addUser(customerId: number, payload: { name: string; email: string; role: string; password: string }): Promise<CustomerUser> {
+  async addUser(customerId: number, payload: { name: string; email: string; password: string; property_roles: { property_id: number; role: string }[] }): Promise<CustomerUser> {
     const { data } = await api.post(`/admin/customers/${customerId}/users`, payload);
     return data;
   },
 
-  async updateUser(customerId: number, userId: number, payload: { name: string; role: string }): Promise<CustomerUser> {
+  async updateUser(customerId: number, userId: number, payload: { name: string; property_roles: { property_id: number; role: string }[] }): Promise<CustomerUser> {
     const { data } = await api.put(`/admin/customers/${customerId}/users/${userId}`, payload);
     return data;
   },

@@ -105,6 +105,18 @@ async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `);
 
+  // ── User → Property roles (many-to-many with role per property) ──────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_property_roles (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      property_id INTEGER NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+      role VARCHAR(100) NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(user_id, property_id)
+    )
+  `);
+
   // ── Scope transactions and terminals to a customer ────────────────────────────
   await pool.query(`
     ALTER TABLE transactions
@@ -873,7 +885,24 @@ app.get('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, 
       'SELECT id, email, name, role, created_at FROM users WHERE customer_id = $1 ORDER BY created_at',
       [req.params.id]
     );
-    res.json({ ...rows[0], properties: props, users });
+    // Attach property_roles to each user
+    const { rows: allRoles } = await pool.query(
+      `SELECT upr.user_id, upr.property_id, upr.role, p.name AS property_name, p.type AS property_type
+       FROM user_property_roles upr
+       JOIN properties p ON p.id = upr.property_id
+       WHERE p.customer_id = $1`,
+      [req.params.id]
+    );
+    const usersWithRoles = users.map(u => ({
+      ...u,
+      property_roles: allRoles.filter(r => r.user_id === u.id).map(r => ({
+        property_id: r.property_id,
+        property_name: r.property_name,
+        property_type: r.property_type,
+        role: r.role,
+      })),
+    }));
+    res.json({ ...rows[0], properties: props, users: usersWithRoles });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -979,42 +1008,114 @@ app.get('/api/admin/customers/:id/users', requireAuth, requireSuperAdmin, async 
       'SELECT id, email, name, role, created_at FROM users WHERE customer_id = $1 ORDER BY created_at',
       [req.params.id]
     );
-    res.json({ items: rows });
+    const { rows: allRoles } = await pool.query(
+      `SELECT upr.user_id, upr.property_id, upr.role, p.name AS property_name, p.type AS property_type
+       FROM user_property_roles upr
+       JOIN properties p ON p.id = upr.property_id
+       WHERE p.customer_id = $1`,
+      [req.params.id]
+    );
+    const items = rows.map(u => ({
+      ...u,
+      property_roles: allRoles.filter(r => r.user_id === u.id).map(r => ({
+        property_id: r.property_id,
+        property_name: r.property_name,
+        property_type: r.property_type,
+        role: r.role,
+      })),
+    }));
+    res.json({ items });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
+// Helper: upsert property roles for a user
+async function syncPropertyRoles(client, userId, customerId, propertyRoles) {
+  // Delete existing roles for properties belonging to this customer
+  await client.query(
+    `DELETE FROM user_property_roles WHERE user_id = $1
+     AND property_id IN (SELECT id FROM properties WHERE customer_id = $2)`,
+    [userId, customerId]
+  );
+  if (propertyRoles && propertyRoles.length > 0) {
+    for (const pr of propertyRoles) {
+      if (!pr.property_id || !pr.role) continue;
+      await client.query(
+        `INSERT INTO user_property_roles (user_id, property_id, role)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, property_id) DO UPDATE SET role = EXCLUDED.role`,
+        [userId, pr.property_id, pr.role]
+      );
+    }
+  }
+}
+
 app.post('/api/admin/customers/:id/users', requireAuth, requireSuperAdmin, async (req, res) => {
-  const { name, email, role, password } = req.body;
-  if (!name || !email || !role || !password) return res.status(400).json({ message: 'All fields required' });
+  const { name, email, password, property_roles } = req.body;
+  if (!name || !email || !password) return res.status(400).json({ message: 'name, email and password required' });
+  // Derive a default role from the first property role (for backwards compat)
+  const defaultRole = (property_roles && property_roles[0]?.role) || 'front_office_operator';
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     const hash = await bcrypt.hash(password, 10);
-    const { rows } = await pool.query(
+    const { rows } = await client.query(
       'INSERT INTO users (name, email, password_hash, role, customer_id) VALUES ($1,$2,$3,$4,$5) RETURNING id, email, name, role, created_at',
-      [name, email, hash, role, req.params.id]
+      [name, email, hash, defaultRole, req.params.id]
     );
-    res.status(201).json(rows[0]);
+    const user = rows[0];
+    await syncPropertyRoles(client, user.id, req.params.id, property_roles || []);
+    await client.query('COMMIT');
+    // Return with property_roles
+    const { rows: roleRows } = await pool.query(
+      `SELECT upr.property_id, upr.role, p.name AS property_name, p.type AS property_type
+       FROM user_property_roles upr JOIN properties p ON p.id = upr.property_id
+       WHERE upr.user_id = $1`,
+      [user.id]
+    );
+    res.status(201).json({ ...user, property_roles: roleRows });
   } catch (err) {
+    await client.query('ROLLBACK');
     if (err.code === '23505') return res.status(409).json({ message: 'Email already exists' });
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
+  } finally {
+    client.release();
   }
 });
 
 app.put('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmin, async (req, res) => {
-  const { name, role } = req.body;
+  const { name, property_roles } = req.body;
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
-      'UPDATE users SET name=$1, role=$2 WHERE id=$3 AND customer_id=$4 RETURNING id, email, name, role, created_at',
-      [name, role, req.params.uid, req.params.cid]
+    await client.query('BEGIN');
+    // Derive default role from first property role
+    const defaultRole = (property_roles && property_roles[0]?.role) || undefined;
+    const updateRole = defaultRole
+      ? 'UPDATE users SET name=$1, role=$2 WHERE id=$3 AND customer_id=$4 RETURNING id, email, name, role, created_at'
+      : 'UPDATE users SET name=$1 WHERE id=$2 AND customer_id=$3 RETURNING id, email, name, role, created_at';
+    const updateParams = defaultRole
+      ? [name, defaultRole, req.params.uid, req.params.cid]
+      : [name, req.params.uid, req.params.cid];
+    const { rows } = await client.query(updateRole, updateParams);
+    if (!rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'User not found' }); }
+    await syncPropertyRoles(client, rows[0].id, req.params.cid, property_roles || []);
+    await client.query('COMMIT');
+    const { rows: roleRows } = await pool.query(
+      `SELECT upr.property_id, upr.role, p.name AS property_name, p.type AS property_type
+       FROM user_property_roles upr JOIN properties p ON p.id = upr.property_id
+       WHERE upr.user_id = $1`,
+      [rows[0].id]
     );
-    if (!rows[0]) return res.status(404).json({ message: 'User not found' });
-    res.json(rows[0]);
+    res.json({ ...rows[0], property_roles: roleRows });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
+  } finally {
+    client.release();
   }
 });
 

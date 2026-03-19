@@ -21,7 +21,7 @@ import {
   ArrowLeft, Plus, MoreHorizontal, Edit, Trash2, Building2,
   Users, Hotel, UtensilsCrossed, ShoppingBag, Loader2, AlertCircle,
 } from "lucide-react";
-import { CustomerService, CustomerDetail, Property, CustomerUser } from "../services/customerService";
+import { CustomerService, CustomerDetail, Property, CustomerUser, PropertyRole } from "../services/customerService";
 import { useToast } from "../hooks/useToast";
 import { getRoleLabel, APP_ROLES } from "../lib/permissions";
 
@@ -41,10 +41,11 @@ const typeIcon = (type: string) => {
 };
 
 type PropForm = { name: string; type: string; address: string; status: "active" | "inactive" };
-type UserForm = { name: string; email: string; role: string; password: string };
+type PropertyRoleEntry = { property_id: number; role: string };
+type UserForm = { name: string; email: string; password: string; property_roles: PropertyRoleEntry[] };
 
 const emptyProp: PropForm = { name: "", type: "hotel", address: "", status: "active" };
-const emptyUser: UserForm = { name: "", email: "", role: APP_ROLES.FRONT_OFFICE_OPERATOR, password: "" };
+const emptyUser: UserForm = { name: "", email: "", password: "", property_roles: [] };
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -125,15 +126,58 @@ export default function CustomerDetailPage() {
   };
 
   // ── Users ────────────────────────────────────────────────────────────────────
-  const openAddUser = () => { setEditUser(null); setUserForm(emptyUser); setUserError(""); setUserDialog(true); };
-  const openEditUser = (u: CustomerUser) => { setEditUser(u); setUserForm({ name: u.name, email: u.email, role: u.role, password: "" }); setUserError(""); setUserDialog(true); };
+  const openAddUser = () => {
+    setEditUser(null);
+    setUserForm(emptyUser);
+    setUserError("");
+    setUserDialog(true);
+  };
+  const openEditUser = (u: CustomerUser) => {
+    setEditUser(u);
+    setUserForm({
+      name: u.name,
+      email: u.email,
+      password: "",
+      property_roles: (u.property_roles || []).map((pr: PropertyRole) => ({ property_id: pr.property_id, role: pr.role })),
+    });
+    setUserError("");
+    setUserDialog(true);
+  };
+
+  const setPropertyRole = (property_id: number, role: string) => {
+    setUserForm((f) => {
+      const existing = f.property_roles.find((pr) => pr.property_id === property_id);
+      if (existing) {
+        return { ...f, property_roles: f.property_roles.map((pr) => pr.property_id === property_id ? { ...pr, role } : pr) };
+      }
+      return { ...f, property_roles: [...f.property_roles, { property_id, role }] };
+    });
+  };
+
+  const toggleProperty = (property_id: number, checked: boolean) => {
+    setUserForm((f) => {
+      if (checked) {
+        if (f.property_roles.find((pr) => pr.property_id === property_id)) return f;
+        return { ...f, property_roles: [...f.property_roles, { property_id, role: APP_ROLES.FRONT_OFFICE_OPERATOR }] };
+      }
+      return { ...f, property_roles: f.property_roles.filter((pr) => pr.property_id !== property_id) };
+    });
+  };
 
   const saveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setUserError(""); setUserSaving(true);
+    if (userForm.property_roles.length === 0) {
+      setUserError("Assign at least one property with a role.");
+      setUserSaving(false);
+      return;
+    }
     try {
       if (editUser) {
-        await CustomerService.updateUser(customerId, editUser.id, { name: userForm.name, role: userForm.role });
+        await CustomerService.updateUser(customerId, editUser.id, {
+          name: userForm.name,
+          property_roles: userForm.property_roles,
+        });
         toast({ title: "User updated" });
       } else {
         if (!userForm.password || userForm.password.length < 8) {
@@ -141,7 +185,12 @@ export default function CustomerDetailPage() {
           setUserSaving(false);
           return;
         }
-        await CustomerService.addUser(customerId, userForm);
+        await CustomerService.addUser(customerId, {
+          name: userForm.name,
+          email: userForm.email,
+          password: userForm.password,
+          property_roles: userForm.property_roles,
+        });
         toast({ title: "User created" });
       }
       setUserDialog(false);
@@ -304,7 +353,7 @@ export default function CustomerDetailPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
+                  <TableHead>Properties & Roles</TableHead>
                   <TableHead>Added</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
@@ -315,7 +364,19 @@ export default function CustomerDetailPage() {
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{getRoleLabel(u.role)}</Badge>
+                      {(u.property_roles || []).length === 0 ? (
+                        <span className="text-muted-foreground text-xs">No properties assigned</span>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          {(u.property_roles || []).map((pr) => (
+                            <div key={pr.property_id} className="flex items-center gap-1.5 text-xs">
+                              {typeIcon(pr.property_type)}
+                              <span className="text-gray-600 dark:text-gray-400">{pr.property_name}</span>
+                              <Badge variant="secondary" className="text-xs py-0 px-1.5">{getRoleLabel(pr.role)}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
@@ -384,10 +445,10 @@ export default function CustomerDetailPage() {
 
       {/* User Dialog */}
       <Dialog open={userDialog} onOpenChange={setUserDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>{editUser ? "Edit User" : "Add User"}</DialogTitle></DialogHeader>
           <form onSubmit={saveUser}>
-            <div className="space-y-4 py-2">
+            <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
               {userError && <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded-md">{userError}</div>}
               <div className="space-y-1">
                 <Label>Full Name *</Label>
@@ -399,15 +460,6 @@ export default function CustomerDetailPage() {
                   <Input type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} placeholder="jean@hotel.com" required />
                 </div>
               )}
-              <div className="space-y-1">
-                <Label>Role *</Label>
-                <Select value={userForm.role} onValueChange={(v) => setUserForm({ ...userForm, role: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_ROLES.map((r) => <SelectItem key={r} value={r}>{getRoleLabel(r)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
               {!editUser && (
                 <div className="space-y-1">
                   <Label>Password * <span className="text-xs text-muted-foreground">(min 8 chars)</span></Label>
@@ -417,7 +469,6 @@ export default function CustomerDetailPage() {
                       value={userForm.password}
                       onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
                       placeholder="Temporary password"
-                      required
                     />
                     <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
                       {showPass ? "Hide" : "Show"}
@@ -425,6 +476,47 @@ export default function CustomerDetailPage() {
                   </div>
                 </div>
               )}
+
+              {/* Properties & roles */}
+              <div className="space-y-2">
+                <Label>Properties & Roles *</Label>
+                <p className="text-xs text-muted-foreground">Select properties this user can access and set their role for each.</p>
+                {(data?.properties || []).length === 0 ? (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">No properties yet. Add a property first.</p>
+                ) : (
+                  <div className="space-y-2 border rounded-md p-3 bg-gray-50 dark:bg-gray-900/50">
+                    {(data?.properties || []).map((p) => {
+                      const assigned = userForm.property_roles.find((pr) => pr.property_id === p.id);
+                      return (
+                        <div key={p.id} className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            id={`prop-${p.id}`}
+                            checked={!!assigned}
+                            onChange={(e) => toggleProperty(p.id, e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 accent-blue-600"
+                          />
+                          <label htmlFor={`prop-${p.id}`} className="flex items-center gap-1.5 text-sm flex-1 cursor-pointer">
+                            {typeIcon(p.type)}
+                            <span>{p.name}</span>
+                            <span className="text-xs text-muted-foreground">({p.type})</span>
+                          </label>
+                          {assigned && (
+                            <Select value={assigned.role} onValueChange={(v) => setPropertyRole(p.id, v)}>
+                              <SelectTrigger className="w-44 h-7 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CUSTOMER_ROLES.map((r) => <SelectItem key={r} value={r} className="text-xs">{getRoleLabel(r)}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
             <DialogFooter className="mt-4">
               <Button type="button" variant="outline" onClick={() => setUserDialog(false)} disabled={userSaving}>Cancel</Button>

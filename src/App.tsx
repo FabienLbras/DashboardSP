@@ -23,10 +23,12 @@ import CustomerEdit from "./pages/CustomerEdit";
 import CustomerNew from "./pages/CustomerNew";
 import Reports from "./pages/Reports";
 import { APP_PERMISSIONS } from "./lib/permissions";
+import { LanguageProvider } from "./context/LanguageContext";
 
 export default function App() {
 
   return (
+    <LanguageProvider>
     <AuthProvider>
       <CustomerFilterProvider>
       <Routes>
@@ -102,5 +104,6 @@ export default function App() {
       </Routes>
       </CustomerFilterProvider>
     </AuthProvider>
+    </LanguageProvider>
   );
 }

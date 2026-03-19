@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { AuthService } from "../../services/authService";
+import { useLanguage } from "../../context/LanguageContext";
 import LogoIcon from "../../assets/logo2.png";
 import Label from "../../components/form/Label";
 import Input from "../../components/form/input/InputField";
@@ -8,6 +9,7 @@ import Button from "../../components/ui/button/Button";
 import { Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
 
 export default function ResetPassword() {
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get("token") || "";
@@ -25,27 +27,27 @@ export default function ResetPassword() {
     setErrorMsg("");
 
     if (newPassword !== confirmPassword) {
-      setErrorMsg("Passwords do not match.");
+      setErrorMsg(t("passwordsDoNotMatch"));
       return;
     }
     if (newPassword.length < 8) {
-      setErrorMsg("Password must be at least 8 characters.");
+      setErrorMsg(t("passwordMinLength"));
       return;
     }
     if (!token) {
-      setErrorMsg("Invalid or missing reset token. Please request a new reset link.");
+      setErrorMsg(t("invalidToken"));
       return;
     }
 
     setIsLoading(true);
     try {
       await AuthService.resetPassword(token, newPassword);
-      setSuccessMsg("Your password has been reset successfully.");
+      setSuccessMsg(t("passwordResetSuccess"));
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Failed to reset password. The link may have expired.";
+        t("resetLinkExpired");
       setErrorMsg(msg);
     } finally {
       setIsLoading(false);
@@ -56,10 +58,10 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
         <div className="w-full max-w-md bg-surface p-8 rounded-lg shadow-lg text-center space-y-4">
-          <p className="text-red-600 font-medium">Invalid reset link.</p>
-          <p className="text-sm text-gray-500">This link is missing a token. Please request a new password reset.</p>
+          <p className="text-red-600 font-medium">{t("invalidResetLink")}</p>
+          <p className="text-sm text-gray-500">{t("missingToken")}</p>
           <Link to="/forgot-password" className="inline-block text-sm text-brand-500 hover:text-brand-600 font-medium">
-            Request new link
+            {t("requestNewLink")}
           </Link>
         </div>
       </div>
@@ -74,10 +76,10 @@ export default function ResetPassword() {
           <img src={LogoIcon} alt="Company Logo" className="w-56" />
           <div className="space-y-4">
             <h3 className="text-4xl font-medium text-text-primary leading-tight">
-              Create a new <span className="text-success-blue">password</span>
+              {t("createNewPassword")}
             </h3>
             <p className="text-lg font-light text-text-secondary leading-relaxed">
-              Choose a strong password to secure your account.
+              {t("chooseStrongPassword")}
             </p>
           </div>
         </div>
@@ -91,10 +93,10 @@ export default function ResetPassword() {
 
             <div className="mb-6">
               <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-                Reset Password
+                {t("resetPasswordTitle")}
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Enter your new password below.
+                {t("enterNewPasswordBelow")}
               </p>
             </div>
 
@@ -109,7 +111,7 @@ export default function ResetPassword() {
                   size="sm"
                   onClick={() => navigate("/signin", { replace: true })}
                 >
-                  Sign In
+                  {t("login")}
                 </Button>
               </div>
             ) : (
@@ -120,7 +122,7 @@ export default function ResetPassword() {
                     {errorMsg.includes("expired") && (
                       <div className="mt-2">
                         <Link to="/forgot-password" className="text-red-700 underline font-medium">
-                          Request a new link
+                          {t("requestNewLink")}
                         </Link>
                       </div>
                     )}
@@ -129,12 +131,12 @@ export default function ResetPassword() {
 
                 <div>
                   <Label>
-                    New Password <span className="text-error-500">*</span>
+                    {t("newPassword")} <span className="text-error-500">*</span>
                   </Label>
                   <div className="relative">
                     <Input
                       type={showNew ? "text" : "password"}
-                      placeholder="Min. 8 characters"
+                      placeholder={t("minEightChars")}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
@@ -151,12 +153,12 @@ export default function ResetPassword() {
 
                 <div>
                   <Label>
-                    Confirm Password <span className="text-error-500">*</span>
+                    {t("confirmPassword")} <span className="text-error-500">*</span>
                   </Label>
                   <div className="relative">
                     <Input
                       type={showConfirm ? "text" : "password"}
-                      placeholder="Repeat new password"
+                      placeholder={t("repeatNewPassword")}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
@@ -177,7 +179,7 @@ export default function ResetPassword() {
                   size="sm"
                   disabled={isLoading || !newPassword || !confirmPassword}
                 >
-                  {isLoading ? "Resetting..." : "Reset Password"}
+                  {isLoading ? t("resetting") : t("resetPasswordTitle")}
                 </Button>
 
                 <div className="text-center">
@@ -186,7 +188,7 @@ export default function ResetPassword() {
                     className="flex items-center justify-center gap-2 text-sm text-brand-500 hover:text-brand-600 font-medium"
                   >
                     <ArrowLeft className="h-4 w-4" />
-                    Back to Sign In
+                    {t("backToSignIn")}
                   </Link>
                 </div>
               </form>

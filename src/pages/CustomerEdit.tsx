@@ -10,6 +10,7 @@ import {
 import { ArrowLeft, Loader2, AlertCircle, Save } from "lucide-react";
 import { CustomerService } from "../services/customerService";
 import { useToast } from "../hooks/useToast";
+import { useLanguage } from "../context/LanguageContext";
 
 type Form = { name: string; email: string; phone: string; address: string; status: "active" | "inactive" };
 
@@ -17,6 +18,7 @@ export default function CustomerEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const customerId = Number(id);
 
   const [form, setForm] = useState<Form>({ name: "", email: "", phone: "", address: "", status: "active" });
@@ -55,7 +57,7 @@ export default function CustomerEdit() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin mr-2 text-blue-600" />
-        <span className="text-muted-foreground">Loading customer…</span>
+        <span className="text-muted-foreground">{t("loading")}</span>
       </div>
     );
   }
@@ -81,11 +83,11 @@ export default function CustomerEdit() {
             className="gap-1"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            {t("back")}
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Edit Customer</h1>
-            <p className="text-muted-foreground text-sm">Update customer information</p>
+            <h1 className="text-2xl font-bold text-text-primary">{t("editCustomer")}</h1>
+            <p className="text-muted-foreground text-sm">{t("updateCustomerDesc")}</p>
           </div>
         </div>
       </div>
@@ -93,7 +95,7 @@ export default function CustomerEdit() {
       {/* Form */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Customer Information</CardTitle>
+          <CardTitle className="text-base">{t("customerInformation")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -105,7 +107,7 @@ export default function CustomerEdit() {
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="name">Name *</Label>
+              <Label htmlFor="name">{`${t("name")} *`}</Label>
               <Input
                 id="name"
                 value={form.name}
@@ -116,7 +118,7 @@ export default function CustomerEdit() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">{`${t("email")} *`}</Label>
               <Input
                 id="email"
                 type="email"
@@ -129,7 +131,7 @@ export default function CustomerEdit() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">{t("phone")}</Label>
                 <Input
                   id="phone"
                   value={form.phone}
@@ -138,7 +140,7 @@ export default function CustomerEdit() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status">{t("status")}</Label>
                 <Select
                   value={form.status}
                   onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}
@@ -147,15 +149,15 @@ export default function CustomerEdit() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="active">{t("active")}</SelectItem>
+                    <SelectItem value="inactive">{t("inactive")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address">{t("address")}</Label>
               <Input
                 id="address"
                 value={form.address}
@@ -171,13 +173,13 @@ export default function CustomerEdit() {
                 onClick={() => navigate(`/customers/${customerId}`)}
                 disabled={saving}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white gap-2">
                 {saving ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" />Saving…</>
+                  <><Loader2 className="h-4 w-4 animate-spin" />{t("saving")}</>
                 ) : (
-                  <><Save className="h-4 w-4" />Save Changes</>
+                  <><Save className="h-4 w-4" />{t("saveChanges")}</>
                 )}
               </Button>
             </div>

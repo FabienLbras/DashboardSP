@@ -23,22 +23,24 @@ import {
 import { mockTerminals } from "../data/mockData";
 import { useAuth } from "../context/AuthContext";
 import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function Terminals() {
   const { user } = useAuth();
   const { selectedCustomer, setSelectedCustomer, customers } = useCustomerFilter();
+  const { t } = useLanguage();
   const isAdmin = isSuperAdmin(user?.role);
   const [terminals, setTerminals] = useState(mockTerminals);
   const [searchTerm, setSearchTerm] = useState("");
   const canManageTerminals = hasPermission(user?.role, APP_PERMISSIONS.MANAGE_TERMINALS);
 
-  const filteredTerminals = terminals.filter((t) => {
+  const filteredTerminals = terminals.filter((term) => {
     if (!searchTerm) return true;
     const q = searchTerm.toLowerCase();
     return (
-      t.id.toLowerCase().includes(q) ||
-      t.name.toLowerCase().includes(q) ||
-      t.location.toLowerCase().includes(q)
+      term.id.toLowerCase().includes(q) ||
+      term.name.toLowerCase().includes(q) ||
+      term.location.toLowerCase().includes(q)
     );
   });
 
@@ -48,14 +50,14 @@ export default function Terminals() {
         return (
           <Badge className="bg-green-100 text-green-800">
             <Wifi className="h-3 w-3 mr-1" />
-            Online
+            {t("online")}
           </Badge>
         );
       case "offline":
         return (
           <Badge variant="destructive" className="bg-red-100 text-red-800">
             <WifiOff className="h-3 w-3 mr-1" />
-            Offline
+            {t("offline")}
           </Badge>
         );
       default:
@@ -68,13 +70,13 @@ export default function Terminals() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Terminal Management</h1>
-          <p className="text-muted-foreground">Monitor and manage all connected payment terminals</p>
+          <h1 className="text-3xl font-bold text-text-primary">{t("terminalManagement")}</h1>
+          <p className="text-muted-foreground">{t("monitorTerminals")}</p>
         </div>
         {canManageTerminals && (
           <Button className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
             <Plus className="h-4 w-4 mr-2" />
-            Add Terminal
+            {t("addTerminal")}
           </Button>
         )}
       </div>
@@ -84,13 +86,13 @@ export default function Terminals() {
         <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Terminals
+              {t("totalTerminals")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{terminals.length}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Across all locations
+              {t("acrossAllLocations")}
             </p>
           </CardContent>
         </Card>
@@ -98,15 +100,15 @@ export default function Terminals() {
         <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Online Terminals
+              {t("onlineTerminals")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {terminals.filter(t => t.status === "online").length}
+              {terminals.filter(term => term.status === "online").length}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Currently active
+              {t("currentlyActive")}
             </p>
           </CardContent>
         </Card>
@@ -114,15 +116,15 @@ export default function Terminals() {
         <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Transactions Today
+              {t("totalTransactionsToday")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {terminals.reduce((sum, t) => sum + t.todayTransactions, 0)}
+              {terminals.reduce((sum, term) => sum + term.todayTransactions, 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Across all terminals
+              {t("acrossAllTerminals")}
             </p>
           </CardContent>
         </Card>
@@ -131,14 +133,14 @@ export default function Terminals() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
+          <CardTitle className="text-lg">{t("filter")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 flex-wrap">
             <div className="flex-1 min-w-64 relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by ID, name or location..."
+                placeholder={t("searchTerminal")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -150,10 +152,10 @@ export default function Terminals() {
                 onValueChange={(v) => setSelectedCustomer(v === "all" ? null : (customers.find((c) => String(c.id) === v) ?? null))}
               >
                 <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All Customers" />
+                  <SelectValue placeholder={t("allCustomers")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Customers</SelectItem>
+                  <SelectItem value="all">{t("allCustomers")}</SelectItem>
                   {customers.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
                   ))}
@@ -169,20 +171,20 @@ export default function Terminals() {
         <CardHeader>
           <CardTitle>Connected Terminals</CardTitle>
           <CardDescription>
-            {filteredTerminals.length} terminal{filteredTerminals.length !== 1 ? "s" : ""} found
+            {filteredTerminals.length} {t("terminalsFound")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Terminal ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last Seen</TableHead>
-                <TableHead>Today's Transactions</TableHead>
-                <TableHead>Today's Revenue</TableHead>
+                <TableHead>{t("terminalId")}</TableHead>
+                <TableHead>{t("name")}</TableHead>
+                <TableHead>{t("location")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
+                <TableHead>{t("lastSeen")}</TableHead>
+                <TableHead>{t("todayTransactions")}</TableHead>
+                <TableHead>{t("todayRevenue")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -24,13 +24,13 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { APP_PERMISSIONS, hasPermission } from "../../lib/permissions";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -38,11 +38,13 @@ import {
   LineChart,
   Line
 } from "recharts";
+import { useLanguage } from "../../context/LanguageContext";
 
 const COLORS = ['hsl(218, 89%, 51%)', 'hsl(28, 95%, 58%)', '#8884d8', '#82ca9d', '#ffc658'];
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const canGenerateReports = hasPermission(user?.role, APP_PERMISSIONS.GENERATE_REPORTS);
   const changePercentage = ((mockKPIs.todayRevenue - mockKPIs.yesterdayRevenue) / mockKPIs.yesterdayRevenue * 100);
 
@@ -61,18 +63,18 @@ export default function Home() {
     <>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Payment Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {user?.name}. Here's your hotel's payment overview.</p>
+          <h1 className="text-3xl font-bold text-text-primary">{t("paymentDashboard")}</h1>
+          <p className="text-muted-foreground">{`${t("welcomeBack")}, ${user?.name}. ${t("hotelPaymentOverview")}`}</p>
         </div>
         {canGenerateReports && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
-              Export Report
+              {t("exportReport")}
             </Button>
             <Button size="sm" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
               <Eye className="h-4 w-4 mr-2" />
-              View Details
+              {t("viewDetails")}
             </Button>
           </div>
         )}
@@ -88,20 +90,19 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <ShieldAlert className="h-5 w-5 shrink-0" />
             <p className="text-sm font-medium">
-              Your account is not protected by two-factor authentication.{" "}
+              {t("mfaWarning")}{" "}
               <button
                 onClick={() => navigate("/profile")}
                 className="underline underline-offset-2 hover:no-underline font-semibold"
               >
-                Enable MFA now
-              </button>{" "}
-              to secure your account.
+                {t("enableMfa")}
+              </button>
             </p>
           </div>
           <button
             onClick={() => setMfaBannerDismissed(true)}
             className="shrink-0 rounded p-1 hover:bg-amber-100 dark:hover:bg-amber-900"
-            aria-label="Dismiss"
+            aria-label={t("close")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -111,31 +112,31 @@ export default function Home() {
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
         <KPICard
-          title="Today's Revenue"
+          title={t("todayRevenue")}
           value={`$${mockKPIs.todayRevenue.toLocaleString()}`}
           change={{ value: Math.round(changePercentage), type: changePercentage > 0 ? "increase" : "decrease" }}
           icon={DollarSign}
-          description="Compared to yesterday"
+          description={t("comparedToYesterday")}
         />
         <KPICard
-          title="Month to Date"
+          title={t("monthToDate")}
           value={`$${mockKPIs.monthToDate.toLocaleString()}`}
           change={{ value: 12, type: "increase" }}
           icon={TrendingUp}
-          description="This month's total"
+          description={t("thisMonthTotal")}
         />
         <KPICard
-          title="Avg Transaction"
+          title={t("avgTransaction")}
           value={`$${mockKPIs.averageTransactionValue}`}
           change={{ value: 5, type: "increase" }}
           icon={CreditCard}
-          description="Per transaction"
+          description={t("perTransaction")}
         />
         <KPICard
-          title="Failed Transactions"
+          title={t("failedTransactions")}
           value={`${mockKPIs.failedTransactionsCount}`}
           icon={AlertTriangle}
-          description={`$${mockKPIs.failedTransactionsValue} in value`}
+          description={`$${mockKPIs.failedTransactionsValue} ${t("inValue")}`}
         />
       </div>
 
@@ -144,29 +145,29 @@ export default function Home() {
         {/* Revenue Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue Trend (Last 7 Days)</CardTitle>
-            <CardDescription>Daily revenue and transaction volume</CardDescription>
+            <CardTitle>{t("revenueTrend")}</CardTitle>
+            <CardDescription>{t("dailyRevenueVolume")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={mockRevenueData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
+                <XAxis
+                  dataKey="date"
                   tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 />
                 <YAxis />
-                <Tooltip 
+                <Tooltip
                   labelFormatter={(value) => new Date(value).toLocaleDateString()}
                   formatter={(value, name) => [
                     name === 'revenue' ? `$${value.toLocaleString()}` : value,
-                    name === 'revenue' ? 'Revenue' : 'Transactions'
+                    name === 'revenue' ? t("revenue") : t("transactions")
                   ]}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="hsl(218, 89%, 51%)" 
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="hsl(218, 89%, 51%)"
                   strokeWidth={2}
                   dot={{ fill: 'hsl(218, 89%, 51%)' }}
                 />
@@ -178,8 +179,8 @@ export default function Home() {
         {/* Payment Methods Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Payment Methods</CardTitle>
-            <CardDescription>Distribution by card brand and digital wallets</CardDescription>
+            <CardTitle>{t("paymentMethods")}</CardTitle>
+            <CardDescription>{t("distributionByCard")}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -208,8 +209,8 @@ export default function Home() {
       {/* Location Performance */}
       <Card>
         <CardHeader>
-          <CardTitle>Performance by Location</CardTitle>
-          <CardDescription>Transaction volume and revenue by hotel location</CardDescription>
+          <CardTitle>{t("performanceByLocation")}</CardTitle>
+          <CardDescription>{t("transactionVolumeByLocation")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -217,10 +218,10 @@ export default function Home() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="location" />
               <YAxis />
-              <Tooltip 
+              <Tooltip
                 formatter={(value, name) => [
                   name === 'revenue' ? `$${value.toLocaleString()}` : value,
-                  name === 'revenue' ? 'Revenue' : 'Transactions'
+                  name === 'revenue' ? t("revenue") : t("transactions")
                 ]}
               />
               <Bar dataKey="transactions" fill="hsl(28, 95%, 58%)" name="transactions" />

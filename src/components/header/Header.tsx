@@ -1,6 +1,7 @@
 import { ThemeToggleButton } from "../common/ThemeToggleButton";
 import NotificationDropdown from "./NotificationDropdown";
 import UserDropdown from "./UserDropdown";
+import LanguageSwitcher from "../common/LanguageSwitcher";
 
 interface HeaderProps {
   onClick?: () => void;
@@ -19,6 +20,7 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
         </div>
 
         <div className="flex items-center gap-4">
+          <LanguageSwitcher />
           <ThemeToggleButton />
           <NotificationDropdown />
           <UserDropdown />

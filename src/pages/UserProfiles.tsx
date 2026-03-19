@@ -29,10 +29,12 @@ import { Link } from "react-router-dom";
 import { getRoleLabel } from "../lib/permissions";
 import { AuthService } from "../services/authService";
 import { useToast } from "../hooks/useToast";
+import { useLanguage } from "../context/LanguageContext";
 
 const Profile = () => {
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
 
   // Change password state
@@ -51,18 +53,18 @@ const Profile = () => {
     setPasswordError("");
 
     if (newPassword !== confirmPassword) {
-      setPasswordError("New passwords do not match.");
+      setPasswordError(t("newPasswordsNoMatch"));
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordError("New password must be at least 8 characters.");
+      setPasswordError(t("newPasswordMinLength"));
       return;
     }
 
     setPasswordLoading(true);
     try {
       await AuthService.changePassword(currentPassword, newPassword);
-      toast({ title: "Password changed", description: "Your password has been updated successfully." });
+      toast({ title: t("passwordChanged"), description: t("passwordUpdatedSuccess") });
       setChangePasswordOpen(false);
       setCurrentPassword("");
       setNewPassword("");
@@ -100,8 +102,8 @@ const Profile = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-text-primary">Profile</h1>
-            <p className="text-text-secondary mt-1">Manage your account settings and preferences</p>
+            <h1 className="text-3xl font-bold text-text-primary">{t("profile")}</h1>
+            <p className="text-text-secondary mt-1">{t("manageAccountSettings")}</p>
           </div>
         </div>
 
@@ -137,19 +139,19 @@ const Profile = () => {
             {/* Profile Information */}
             <div className="flex-1 space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-text-primary">Personal Information</h3>
+                <h3 className="text-lg font-semibold text-text-primary">{t("personalInformation")}</h3>
                 {!isEditing ? (
                   <Button onClick={() => setIsEditing(true)} variant="outline">
                     <Edit className="h-4 w-4 mr-2" />
-                    Edit
+                    {t("edit")}
                   </Button>
                 ) : (
                   <div className="space-x-2">
                     <Button onClick={handleSave} size="sm">
-                      Save Changes
+                      {t("saveChanges")}
                     </Button>
                     <Button onClick={handleCancel} variant="outline" size="sm">
-                      Cancel
+                      {t("cancel")}
                     </Button>
                   </div>
                 )}
@@ -264,7 +266,7 @@ const Profile = () => {
         {/* Additional Settings */}
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Account Settings</h3>
+            <h3 className="text-lg font-semibold text-text-primary mb-4">{t("accountSettings")}</h3>
             <div className="space-y-4">
               <Button
                 variant="outline"
@@ -272,35 +274,35 @@ const Profile = () => {
                 onClick={() => { setPasswordError(""); setChangePasswordOpen(true); }}
               >
                 <Lock className="h-4 w-4 mr-2" />
-                Change Password
+                {t("changePassword")}
               </Button>
               <Button variant="outline" className="w-full justify-start" asChild>
                 <Link to="/profile/mfa">
-                  Two-Factor Authentication
+                  {t("twoFactorAuth")}
                 </Link>
               </Button>
               <Button variant="outline" className="w-full justify-start">
-                Notification Preferences
+                {t("notificationPreferences")}
               </Button>
             </div>
           </Card>
 
           <Card className="p-6 hidden">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">Activity Summary</h3>
+            <h3 className="text-lg font-semibold text-text-primary mb-4">{t("activitySummary")}</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Last Login</span>
+                <span className="text-text-secondary">{t("lastLogin")}</span>
                 <span className="text-text-primary font-medium">2 hours ago</span>
               </div>
               <div className="border-b"></div>
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Sessions Active</span>
+                <span className="text-text-secondary">{t("sessionsActive")}</span>
                 <span className="inline-flex items-center rounded-md bg-gray-400/10 px-2 py-1 text-xs font-medium text-gray-400 inset-ring inset-ring-gray-400/20">2</span>
               </div>
               <div className="border-b"></div>
               <div className="flex justify-between items-center">
-                <span className="text-text-secondary">Account Status</span>
-                <Badge className="bg-success-blue text-white">Active</Badge>
+                <span className="text-text-secondary">{t("accountStatus")}</span>
+                <Badge className="bg-success-blue text-white">{t("active")}</Badge>
               </div>
             </div>
           </Card>
@@ -313,7 +315,7 @@ const Profile = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5" />
-              Change Password
+              {t("changePassword")}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleChangePassword}>
@@ -324,14 +326,14 @@ const Profile = () => {
                 </div>
               )}
               <div className="space-y-1">
-                <Label htmlFor="currentPassword">Current Password</Label>
+                <Label htmlFor="currentPassword">{t("currentPassword")}</Label>
                 <div className="relative">
                   <Input
                     id="currentPassword"
                     type={showCurrent ? "text" : "password"}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter current password"
+                    placeholder={t("enterCurrentPassword")}
                     required
                   />
                   <button
@@ -344,14 +346,14 @@ const Profile = () => {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="newPassword">New Password</Label>
+                <Label htmlFor="newPassword">{t("newPassword")}</Label>
                 <div className="relative">
                   <Input
                     id="newPassword"
                     type={showNew ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min. 8 characters"
+                    placeholder={t("minEightChars")}
                     required
                   />
                   <button
@@ -364,14 +366,14 @@ const Profile = () => {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
                     type={showConfirm ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat new password"
+                    placeholder={t("repeatNewPassword")}
                     required
                   />
                   <button
@@ -391,10 +393,10 @@ const Profile = () => {
                 onClick={() => setChangePasswordOpen(false)}
                 disabled={passwordLoading}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={passwordLoading}>
-                {passwordLoading ? "Saving..." : "Save Password"}
+                {passwordLoading ? t("saving") : t("saveChanges")}
               </Button>
             </DialogFooter>
           </form>

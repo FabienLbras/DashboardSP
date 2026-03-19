@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -51,6 +52,7 @@ export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const customerId = Number(id);
 
   const [data, setData] = useState<CustomerDetail | null>(null);
@@ -217,7 +219,7 @@ export default function CustomerDetailPage() {
   if (loading) return (
     <div className="flex items-center justify-center py-24">
       <Loader2 className="h-8 w-8 animate-spin mr-2" />
-      <span className="text-muted-foreground">Loading customer...</span>
+      <span className="text-muted-foreground">{t("loading")}</span>
     </div>
   );
 
@@ -225,7 +227,7 @@ export default function CustomerDetailPage() {
     <div className="flex flex-col items-center gap-4 py-24">
       <div className="flex items-center gap-2 text-red-600"><AlertCircle className="h-5 w-5" />{error || "Not found"}</div>
       <Button variant="outline" onClick={() => navigate("/customers")}>
-        <ArrowLeft className="h-4 w-4 mr-2" />Back to Customers
+        <ArrowLeft className="h-4 w-4 mr-2" />{t("backToCustomers")}
       </Button>
     </div>
   );
@@ -257,7 +259,7 @@ export default function CustomerDetailPage() {
           onClick={() => navigate(`/customers/${customerId}/edit`)}
           className="bg-blue-700 hover:bg-blue-800 text-white gap-1 shrink-0"
         >
-          <Edit className="h-4 w-4" />Edit Customer
+          <Edit className="h-4 w-4" />{t("editCustomer")}
         </Button>
       </div>
 
@@ -281,23 +283,23 @@ export default function CustomerDetailPage() {
       {/* Properties */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" />Properties</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" />{t("properties")}</CardTitle>
           <Button size="sm" onClick={openAddProp} className="text-white bg-blue-700 hover:bg-blue-800">
-            <Plus className="h-4 w-4 mr-1" />Add Property
+            <Plus className="h-4 w-4 mr-1" />{t("addProperty")}
           </Button>
         </CardHeader>
         <CardContent>
           {data.properties.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No properties yet. Add the first one!</p>
+            <p className="text-muted-foreground text-center py-8">{t("noPropertiesYet")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Added</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("type")}</TableHead>
+                  <TableHead>{t("address")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("created")}</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
@@ -323,8 +325,8 @@ export default function CustomerDetailPage() {
                           <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditProp(p)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDeleteProp(p)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditProp(p)}><Edit className="h-4 w-4 mr-2" />{t("edit")}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeleteProp(p)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" />{t("delete")}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -339,22 +341,22 @@ export default function CustomerDetailPage() {
       {/* Users */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Users</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />{t("users")}</CardTitle>
           <Button size="sm" onClick={openAddUser} className="text-white bg-blue-700 hover:bg-blue-800">
-            <Plus className="h-4 w-4 mr-1" />Add User
+            <Plus className="h-4 w-4 mr-1" />{t("addUser")}
           </Button>
         </CardHeader>
         <CardContent>
           {data.users.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No users yet. Add the first one!</p>
+            <p className="text-muted-foreground text-center py-8">{t("noUsersYet")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Properties & Roles</TableHead>
-                  <TableHead>Added</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("email")}</TableHead>
+                  <TableHead>{t("propertiesRoles")}</TableHead>
+                  <TableHead>{t("created")}</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
@@ -385,8 +387,8 @@ export default function CustomerDetailPage() {
                           <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditUser(u)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDeleteUser(u)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" />Delete</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditUser(u)}><Edit className="h-4 w-4 mr-2" />{t("edit")}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeleteUser(u)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" />{t("delete")}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -401,7 +403,7 @@ export default function CustomerDetailPage() {
       {/* Property Dialog */}
       <Dialog open={propDialog} onOpenChange={setPropDialog}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{editProp ? "Edit Property" : "Add Property"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editProp ? t("editProperty") : t("addProperty")}</DialogTitle></DialogHeader>
           <form onSubmit={saveProp}>
             <div className="space-y-4 py-2">
               {propError && <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded-md">{propError}</div>}
@@ -424,8 +426,8 @@ export default function CustomerDetailPage() {
                   <Select value={propForm.status} onValueChange={(v) => setPropForm({ ...propForm, status: v as "active" | "inactive" })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="active">{t("active")}</SelectItem>
+                      <SelectItem value="inactive">{t("inactive")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -436,8 +438,8 @@ export default function CustomerDetailPage() {
               </div>
             </div>
             <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={() => setPropDialog(false)} disabled={propSaving}>Cancel</Button>
-              <Button type="submit" disabled={propSaving}>{propSaving ? "Saving..." : editProp ? "Save" : "Add Property"}</Button>
+              <Button type="button" variant="outline" onClick={() => setPropDialog(false)} disabled={propSaving}>{t("cancel")}</Button>
+              <Button type="submit" disabled={propSaving}>{propSaving ? t("saving") : editProp ? "Save" : t("addProperty")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -446,23 +448,23 @@ export default function CustomerDetailPage() {
       {/* User Dialog */}
       <Dialog open={userDialog} onOpenChange={setUserDialog}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{editUser ? "Edit User" : "Add User"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editUser ? t("editUser") : t("addUser")}</DialogTitle></DialogHeader>
           <form onSubmit={saveUser}>
             <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
               {userError && <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded-md">{userError}</div>}
               <div className="space-y-1">
-                <Label>Full Name *</Label>
+                <Label>{t("fullName")} *</Label>
                 <Input value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} placeholder="Jean Dupont" required />
               </div>
               {!editUser && (
                 <div className="space-y-1">
-                  <Label>Email *</Label>
+                  <Label>{t("email")} *</Label>
                   <Input type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} placeholder="jean@hotel.com" required />
                 </div>
               )}
               {!editUser && (
                 <div className="space-y-1">
-                  <Label>Password * <span className="text-xs text-muted-foreground">(min 8 chars)</span></Label>
+                  <Label>{t("passwordMinChars")}</Label>
                   <div className="relative">
                     <Input
                       type={showPass ? "text" : "password"}
@@ -471,7 +473,7 @@ export default function CustomerDetailPage() {
                       placeholder="Temporary password"
                     />
                     <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">
-                      {showPass ? "Hide" : "Show"}
+                      {showPass ? t("hide") : t("show")}
                     </button>
                   </div>
                 </div>
@@ -479,10 +481,10 @@ export default function CustomerDetailPage() {
 
               {/* Properties & roles */}
               <div className="space-y-2">
-                <Label>Properties & Roles *</Label>
-                <p className="text-xs text-muted-foreground">Select properties this user can access and set their role for each.</p>
+                <Label>{t("propertiesRoles")} *</Label>
+                <p className="text-xs text-muted-foreground">{t("selectPropertiesDesc")}</p>
                 {(data?.properties || []).length === 0 ? (
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">No properties yet. Add a property first.</p>
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">{t("noPropertiesForUser")}</p>
                 ) : (
                   <div className="space-y-2 border rounded-md p-3 bg-gray-50 dark:bg-gray-900/50">
                     {(data?.properties || []).map((p) => {
@@ -519,8 +521,8 @@ export default function CustomerDetailPage() {
               </div>
             </div>
             <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={() => setUserDialog(false)} disabled={userSaving}>Cancel</Button>
-              <Button type="submit" disabled={userSaving}>{userSaving ? "Saving..." : editUser ? "Save" : "Create User"}</Button>
+              <Button type="button" variant="outline" onClick={() => setUserDialog(false)} disabled={userSaving}>{t("cancel")}</Button>
+              <Button type="submit" disabled={userSaving}>{userSaving ? t("creating") : editUser ? "Save" : t("addUser")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -529,11 +531,11 @@ export default function CustomerDetailPage() {
       {/* Delete Property Confirm */}
       <Dialog open={!!deleteProp} onOpenChange={(o) => !o && setDeleteProp(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Delete Property</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("deleteProperty")}</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground py-2">Delete <strong>{deleteProp?.name}</strong>? This cannot be undone.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteProp(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDeleteProp}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteProp(null)}>{t("cancel")}</Button>
+            <Button variant="destructive" onClick={confirmDeleteProp}>{t("delete")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -541,11 +543,11 @@ export default function CustomerDetailPage() {
       {/* Delete User Confirm */}
       <Dialog open={!!deleteUser} onOpenChange={(o) => !o && setDeleteUser(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Delete User</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("deleteUser")}</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground py-2">Delete <strong>{deleteUser?.name}</strong> ({deleteUser?.email})? This cannot be undone.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteUser(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDeleteUser}>Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteUser(null)}>{t("cancel")}</Button>
+            <Button variant="destructive" onClick={confirmDeleteUser}>{t("delete")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

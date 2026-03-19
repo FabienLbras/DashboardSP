@@ -78,13 +78,7 @@ const managementItems: NavItem[] = [
   },
 ];
 
-const settingsItems: NavItem[] = [
-  {
-    icon: <CircleQuestionMarkIcon className="w-5 h-5" />,
-    name: "Support",
-    path: "/support",
-  }
-];
+const settingsItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();

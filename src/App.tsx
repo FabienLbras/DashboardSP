@@ -12,6 +12,8 @@ import Terminals from "./pages/Terminals";
 import Invoices from "./pages/Invoices";
 import Support from "./pages/Support";
 import MfaSettings from "./pages/MfaSettings";
+import Reconciliation from "./pages/Reconciliation";
+import EndOfDay from "./pages/EndOfDay";
 import { APP_PERMISSIONS } from "./lib/permissions";
 
 export default function App() {
@@ -52,6 +54,15 @@ export default function App() {
             element={
               <PermissionRoute permission={APP_PERMISSIONS.ACCESS_ECOMMERCE_DATA}>
                 <Invoices />
+              </PermissionRoute>
+            }
+          />
+          <Route path="reconciliation" element={<Reconciliation />} />
+          <Route
+            path="end-of-day"
+            element={
+              <PermissionRoute permission={APP_PERMISSIONS.VIEW_EOD_REPORTS}>
+                <EndOfDay />
               </PermissionRoute>
             }
           />

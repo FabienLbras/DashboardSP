@@ -2,13 +2,13 @@
 
 This document describes the role-based access model currently implemented in the frontend and backend of the Success Payment Dashboard.
 
-## Roles
+## Roles 
 
-- `admin`
-- `hotel_manager`
-- `financial_manager`
-- `front_office_manager`
-- `front_office_operator`
+- `admin` 
+- `hotel_manager` 
+- `financial_manager` 
+- `front_office_manager` 
+- `front_office_operator` 
 
 ## Permission Keys
 

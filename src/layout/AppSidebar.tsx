@@ -18,7 +18,7 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import Logo from "../assets/logo2.png";
-import { CircleQuestionMarkIcon, FileText } from "lucide-react";
+import { CircleQuestionMarkIcon, FileText, GitMerge, CalendarClock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
@@ -41,9 +41,14 @@ const navItems: NavItem[] = [
     path: "/transactions",
   },
   {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
+    icon: <CalendarClock className="w-5 h-5" />,
+    name: "End of Day",
+    path: "/end-of-day",
+  },
+  {
+    icon: <GitMerge className="w-5 h-5" />,
+    name: "Reconciliation",
+    path: "/reconciliation",
   },
   {
     icon: <BoxCubeIcon />,
@@ -151,6 +156,9 @@ const AppSidebar: React.FC = () => {
     }
     if (item.path === "/invoices") {
       return hasPermission(user?.role, APP_PERMISSIONS.ACCESS_ECOMMERCE_DATA);
+    }
+    if (item.path === "/end-of-day") {
+      return hasPermission(user?.role, APP_PERMISSIONS.VIEW_EOD_REPORTS);
     }
     return true;
   });

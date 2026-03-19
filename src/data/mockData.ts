@@ -167,6 +167,72 @@ export const mockUsers = [
   }
 ];
 
+export const mockEndOfDay = [
+  {
+    id: "EOD-001",
+    date: "2024-01-15",
+    totalTransactions: 134,
+    successTransactions: 126,
+    failedTransactions: 8,
+    totalAmount: 25432.50,
+    averageTransaction: 201.85,
+  },
+  {
+    id: "EOD-002",
+    date: "2024-01-14",
+    totalTransactions: 118,
+    successTransactions: 110,
+    failedTransactions: 8,
+    totalAmount: 23100.20,
+    averageTransaction: 210.00,
+  },
+  {
+    id: "EOD-003",
+    date: "2024-01-13",
+    totalTransactions: 145,
+    successTransactions: 140,
+    failedTransactions: 5,
+    totalAmount: 28900.75,
+    averageTransaction: 206.43,
+  },
+  {
+    id: "EOD-004",
+    date: "2024-01-12",
+    totalTransactions: 89,
+    successTransactions: 82,
+    failedTransactions: 7,
+    totalAmount: 17650.30,
+    averageTransaction: 215.25,
+  },
+  {
+    id: "EOD-005",
+    date: "2024-01-11",
+    totalTransactions: 162,
+    successTransactions: 155,
+    failedTransactions: 7,
+    totalAmount: 32100.00,
+    averageTransaction: 207.10,
+  },
+  {
+    id: "EOD-006",
+    date: "2024-01-10",
+    totalTransactions: 101,
+    successTransactions: 95,
+    failedTransactions: 6,
+    totalAmount: 19800.60,
+    averageTransaction: 208.43,
+  },
+  {
+    id: "EOD-007",
+    date: "2024-01-09",
+    totalTransactions: 78,
+    successTransactions: 71,
+    failedTransactions: 7,
+    totalAmount: 15200.40,
+    averageTransaction: 214.09,
+  },
+];
+
 export const mockProperties = [
   {
     id: "PROP-001",

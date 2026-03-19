@@ -23,14 +23,14 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    icon: <Building2 className="w-5 h-5" />,
-    name: "Customers",
-    path: "/customers",
-  },
-  {
     icon: <GridIcon />,
     name: "Dashboard",
     path: "/",
+  },
+  {
+    icon: <Building2 className="w-5 h-5" />,
+    name: "Customers",
+    path: "/customers",
   },
   {
     icon: <BanknotesIcon />,

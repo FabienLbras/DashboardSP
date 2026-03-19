@@ -18,7 +18,9 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import Logo from "../assets/logo2.png";
-import { CircleQuestionMarkIcon, FileText } from "lucide-react";
+import { CircleQuestionMarkIcon, FileText, GitMerge, CalendarClock } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
 type NavItem = {
   name: string;
@@ -39,9 +41,14 @@ const navItems: NavItem[] = [
     path: "/transactions",
   },
   {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
+    icon: <CalendarClock className="w-5 h-5" />,
+    name: "End of Day",
+    path: "/end-of-day",
+  },
+  {
+    icon: <GitMerge className="w-5 h-5" />,
+    name: "Reconciliation",
+    path: "/reconciliation",
   },
   {
     icon: <BoxCubeIcon />,
@@ -76,6 +83,7 @@ const settingsItems: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { user } = useAuth();
   const location = useLocation();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
@@ -141,6 +149,19 @@ const AppSidebar: React.FC = () => {
       return { type: menuType, index };
     });
   };
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.path === "/terminals") {
+      return hasPermission(user?.role, APP_PERMISSIONS.VIEW_TERMINALS);
+    }
+    if (item.path === "/invoices") {
+      return hasPermission(user?.role, APP_PERMISSIONS.ACCESS_ECOMMERCE_DATA);
+    }
+    if (item.path === "/end-of-day") {
+      return hasPermission(user?.role, APP_PERMISSIONS.VIEW_EOD_REPORTS);
+    }
+    return true;
+  });
 
   const renderMenuItems = (items: NavItem[], menuType: "main" | "management" | "account") => (
     <ul className="flex flex-col gap-4">
@@ -312,7 +333,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(filteredNavItems, "main")}
             </div>
 
             <div>

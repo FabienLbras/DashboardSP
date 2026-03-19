@@ -19,6 +19,11 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface MfaChallengeResponse {
+  mfaRequired: true;
+  mfaToken: string;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
@@ -26,11 +31,28 @@ export interface AuthResponse {
   expiresIn: number;
   email: string;
   name: string;
+  role: string;
+  usedBackupCode?: boolean;
+}
+
+export interface MfaStatusResponse {
+  mfaEnabled: boolean;
+  backupCodesRemaining: number;
+}
+
+export interface MfaSetupResponse {
+  secret: string;
+  qrCode: string;
+}
+
+export interface BackupCodesResponse {
+  backupCodes: string[];
 }
 
 export interface User {
   email: string;
   name: string;
+  role: string;
 }
 
 // Authentication service
@@ -40,17 +62,33 @@ export class AuthService {
   private static readonly USER_KEY = 'user';
 
   // Login method
-  static async login(credentials: LoginRequest): Promise<AuthResponse> {
+  static async login(credentials: LoginRequest): Promise<AuthResponse | MfaChallengeResponse> {
     try {
-      const response = await authAPI.post<AuthResponse>('/auth/login', credentials);
+      const response = await authAPI.post<AuthResponse | MfaChallengeResponse>('/auth/login', credentials);
       const authData = response.data;
 
-      // Store tokens and user data
-      this.storeAuthData(authData);
+      if (!('mfaRequired' in authData)) {
+        this.storeAuthData(authData);
+      }
 
       return authData;
     } catch (error) {
       console.error('Login error:', error);
+      throw error;
+    }
+  }
+
+  static async verifyMfaLogin(mfaToken: string, code: string): Promise<AuthResponse> {
+    try {
+      const response = await authAPI.post<AuthResponse>('/auth/mfa/login-verify', {
+        mfaToken,
+        code,
+      });
+      const authData = response.data;
+      this.storeAuthData(authData);
+      return authData;
+    } catch (error) {
+      console.error('MFA login verification error:', error);
       throw error;
     }
   }
@@ -112,7 +150,8 @@ export class AuthService {
   private static storeAuthData(authData: AuthResponse): void {
     const user: User = {
       email: authData.email,
-      name: authData.name
+      name: authData.name,
+      role: authData.role,
     };
 
     // Store in localStorage (persistent) and sessionStorage (session-based)
@@ -209,6 +248,35 @@ export class AuthService {
       throw error;
     }
   }
+
+  static async getProfile(): Promise<User> {
+    const response = await authAPI.get<User>('/user/profile');
+    return response.data;
+  }
+
+  static async getMfaStatus(): Promise<MfaStatusResponse> {
+    const response = await authAPI.get<MfaStatusResponse>('/auth/mfa/status');
+    return response.data;
+  }
+
+  static async setupMfa(): Promise<MfaSetupResponse> {
+    const response = await authAPI.post<MfaSetupResponse>('/auth/mfa/setup');
+    return response.data;
+  }
+
+  static async confirmMfa(code: string): Promise<BackupCodesResponse> {
+    const response = await authAPI.post<BackupCodesResponse>('/auth/mfa/confirm', { code });
+    return response.data;
+  }
+
+  static async disableMfa(code: string, password: string): Promise<void> {
+    await authAPI.post('/auth/mfa/disable', { code, password });
+  }
+
+  static async regenerateBackupCodes(code: string): Promise<BackupCodesResponse> {
+    const response = await authAPI.post<BackupCodesResponse>('/auth/mfa/backup-codes/regenerate', { code });
+    return response.data;
+  }
 }
 
 // Setup axios interceptor for automatic token attachment
@@ -228,11 +296,20 @@ authAPI.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const requestUrl = String(originalRequest?.url || '');
+    const isAuthBootstrapRequest =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/mfa/login-verify') ||
+      requestUrl.includes('/auth/forgot-password') ||
+      requestUrl.includes('/auth/reset-password');
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthBootstrapRequest) {
       originalRequest._retry = true;
 
       try {
+        if (!AuthService.getRefreshToken()) {
+          throw new Error('No refresh token available');
+        }
         await AuthService.refreshToken();
         const newToken = AuthService.getAccessToken();
         

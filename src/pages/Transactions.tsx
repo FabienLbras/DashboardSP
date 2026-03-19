@@ -1,9 +1,3 @@
-
-
-import { useUser } from "../context/UserContext";
-import { checkPermission } from "../auth/checkPermission";
-import { PERMISSIONS } from "../auth/permissions";
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -33,19 +27,13 @@ import autoTable from 'jspdf-autotable';
 import Header from "../components/transactions/Header";
 import TransactionFilters from "../components/transactions/TransactionFilters";
 import TransactionActions from "../components/transactions/TransactionActions";
+import { useAuth } from "../context/AuthContext";
+import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
 
 
 export default function Transactions() {
-  const user = useUser();
-  if (!user || !checkPermission(user.role, PERMISSIONS.VIEW_TRANSACTIONS)) {
-  return (
-    <div className="p-6 text-center">
-      <h2 className="text-xl font-semibold">Access Denied</h2>
-      <p>You do not have permission to view this page.</p>
-    </div>
-        );
-    } 
+  const { user } = useAuth();
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -56,6 +44,7 @@ export default function Transactions() {
 
   const { fetchTransactions, transactions, loading } = useTransactions();
   const { toast } = useToast();
+  const canExportReports = hasPermission(user?.role, APP_PERMISSIONS.EXPORT_REPORTS);
 
   useEffect(() => {
     fetchTransactions();
@@ -421,6 +410,7 @@ export default function Transactions() {
         handleExportPDF={handleExportPDF}
         loading={loading}
         displayTransactions={displayTransactions}
+        canExport={canExportReports}
       />
 
       {/* Error Alert */}

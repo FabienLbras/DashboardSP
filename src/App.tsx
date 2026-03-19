@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext";
 import SignIn from "./pages/AuthPages/SignIn";
 import AppLayout from "./layout/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import PermissionRoute from "./components/auth/PermissionRoute";
 import PublicRoute from "./components/auth/PublicRoute";
 import Home from "./pages/Dashboard/Home";
 import Transactions from "./pages/Transactions";
@@ -10,6 +11,10 @@ import UserProfiles from "./pages/UserProfiles";
 import Terminals from "./pages/Terminals";
 import Invoices from "./pages/Invoices";
 import Support from "./pages/Support";
+import MfaSettings from "./pages/MfaSettings";
+import Reconciliation from "./pages/Reconciliation";
+import EndOfDay from "./pages/EndOfDay";
+import { APP_PERMISSIONS } from "./lib/permissions";
 
 export default function App() {
 
@@ -34,9 +39,33 @@ export default function App() {
         >
           <Route index element={<Home />} />
           <Route path="profile" element={<UserProfiles />} />
+          <Route path="profile/mfa" element={<MfaSettings />} />
           <Route path="transactions" element={<Transactions />} />
-          <Route path="terminals" element={<Terminals />} />
-          <Route path="invoices" element={<Invoices />} />
+          <Route
+            path="terminals"
+            element={
+              <PermissionRoute permission={APP_PERMISSIONS.VIEW_TERMINALS}>
+                <Terminals />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="invoices"
+            element={
+              <PermissionRoute permission={APP_PERMISSIONS.ACCESS_ECOMMERCE_DATA}>
+                <Invoices />
+              </PermissionRoute>
+            }
+          />
+          <Route path="reconciliation" element={<Reconciliation />} />
+          <Route
+            path="end-of-day"
+            element={
+              <PermissionRoute permission={APP_PERMISSIONS.VIEW_EOD_REPORTS}>
+                <EndOfDay />
+              </PermissionRoute>
+            }
+          />
           <Route path="support" element={<Support />} />
         </Route>
         <Route path="*" element={<Navigate to="/signin" />} />

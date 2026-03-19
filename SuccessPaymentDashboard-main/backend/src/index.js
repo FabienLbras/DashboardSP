@@ -286,6 +286,34 @@ async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `);
 
+  // ── Terminal API key (for Android APK auth) ───────────────────────────────────
+  await pool.query(`
+    ALTER TABLE terminals
+      ADD COLUMN IF NOT EXISTS api_key VARCHAR(64) UNIQUE,
+      ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS property_id INTEGER REFERENCES properties(id) ON DELETE SET NULL
+  `);
+
+  // ── End of Day reports ────────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS eod_reports (
+      id SERIAL PRIMARY KEY,
+      terminal_id INTEGER REFERENCES terminals(id) ON DELETE SET NULL,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      property_id INTEGER REFERENCES properties(id) ON DELETE SET NULL,
+      report_date DATE NOT NULL,
+      total_transactions INTEGER DEFAULT 0,
+      successful_transactions INTEGER DEFAULT 0,
+      failed_transactions INTEGER DEFAULT 0,
+      total_amount NUMERIC(12,2) DEFAULT 0,
+      avg_amount NUMERIC(12,2) DEFAULT 0,
+      currency VARCHAR(10) DEFAULT 'EUR',
+      raw_data JSONB,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(terminal_id, report_date)
+    )
+  `);
+
   // ── Password reset tokens ────────────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -1342,6 +1370,197 @@ app.delete('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmi
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ─── Terminal API key middleware ───────────────────────────────────────────────
+async function requireTerminalKey(req, res, next) {
+  const key = req.headers['x-terminal-key'];
+  if (!key) return res.status(401).json({ message: 'Missing X-Terminal-Key header' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT t.*, c.status AS customer_status
+       FROM terminals t
+       LEFT JOIN customers c ON c.id = t.customer_id
+       WHERE t.api_key = $1`,
+      [key]
+    );
+    if (!rows[0]) return res.status(401).json({ message: 'Invalid terminal key' });
+    if (rows[0].status !== 'active') return res.status(403).json({ message: 'Terminal is not active' });
+    if (rows[0].customer_status && rows[0].customer_status !== 'active') {
+      return res.status(403).json({ message: 'Customer account is inactive' });
+    }
+    // Update last_seen
+    await pool.query('UPDATE terminals SET last_seen_at = NOW() WHERE id = $1', [rows[0].id]);
+    req.terminal = rows[0];
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// ─── Terminal endpoints (authenticated via X-Terminal-Key) ────────────────────
+
+// GET /api/terminal/config — terminal fetches its own config
+app.get('/api/terminal/config', requireTerminalKey, async (req, res) => {
+  const t = req.terminal;
+  const { rows: propRows } = await pool.query(
+    'SELECT id, name, type, address FROM properties WHERE id = $1',
+    [t.property_id]
+  );
+  const { rows: custRows } = await pool.query(
+    'SELECT id, name, email FROM customers WHERE id = $1',
+    [t.customer_id]
+  );
+  res.json({
+    terminal: {
+      id: t.id,
+      name: t.name,
+      serial_number: t.serial_number,
+      model: t.model,
+      location: t.location,
+      status: t.status,
+    },
+    property: propRows[0] || null,
+    customer: custRows[0] || null,
+  });
+});
+
+// POST /api/terminal/transaction — push a transaction from the terminal
+app.post('/api/terminal/transaction', requireTerminalKey, async (req, res) => {
+  const t = req.terminal;
+  const {
+    reference, amount, currency, state,
+    payment_method, customer_name, customer_email, description,
+    transaction_at,
+  } = req.body;
+
+  if (!amount || !state) {
+    return res.status(400).json({ message: 'amount and state are required' });
+  }
+
+  const validStates = ['FULFILL', 'FAILED', 'pending', 'refunded'];
+  if (!validStates.includes(state)) {
+    return res.status(400).json({ message: `state must be one of: ${validStates.join(', ')}` });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO transactions
+        (reference, amount, currency, state, payment_method, terminal_id,
+         customer_name, customer_email, description, customer_id, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, COALESCE($11::TIMESTAMP, NOW()))
+       RETURNING *`,
+      [
+        reference || null,
+        amount,
+        currency || 'EUR',
+        state,
+        payment_method || null,
+        String(t.id),
+        customer_name || null,
+        customer_email || null,
+        description || null,
+        t.customer_id,
+        transaction_at || null,
+      ]
+    );
+    await cacheInvalidatePrefix('transactions:');
+    await cacheInvalidatePrefix('dashboard:');
+    res.status(201).json({ success: true, transaction: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /api/terminal/eod — push an end-of-day report from the terminal
+app.post('/api/terminal/eod', requireTerminalKey, async (req, res) => {
+  const t = req.terminal;
+  const {
+    report_date,
+    total_transactions,
+    successful_transactions,
+    failed_transactions,
+    total_amount,
+    avg_amount,
+    currency,
+    raw_data,
+  } = req.body;
+
+  if (!report_date) {
+    return res.status(400).json({ message: 'report_date (YYYY-MM-DD) is required' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO eod_reports
+        (terminal_id, customer_id, property_id, report_date,
+         total_transactions, successful_transactions, failed_transactions,
+         total_amount, avg_amount, currency, raw_data)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (terminal_id, report_date)
+       DO UPDATE SET
+         total_transactions = EXCLUDED.total_transactions,
+         successful_transactions = EXCLUDED.successful_transactions,
+         failed_transactions = EXCLUDED.failed_transactions,
+         total_amount = EXCLUDED.total_amount,
+         avg_amount = EXCLUDED.avg_amount,
+         currency = EXCLUDED.currency,
+         raw_data = EXCLUDED.raw_data
+       RETURNING *`,
+      [
+        t.id,
+        t.customer_id,
+        t.property_id || null,
+        report_date,
+        total_transactions || 0,
+        successful_transactions || 0,
+        failed_transactions || 0,
+        total_amount || 0,
+        avg_amount || 0,
+        currency || 'EUR',
+        raw_data ? JSON.stringify(raw_data) : null,
+      ]
+    );
+    res.status(201).json({ success: true, eod: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ─── Admin: generate/view terminal API keys (super_admin only) ────────────────
+
+// POST /api/admin/terminals/:id/generate-key — generate a new API key for a terminal
+app.post('/api/admin/terminals/:id/generate-key', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const apiKey = crypto.randomBytes(32).toString('hex');
+    const { rows } = await pool.query(
+      'UPDATE terminals SET api_key = $1 WHERE id = $2 RETURNING id, name, serial_number, api_key',
+      [apiKey, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'Terminal not found' });
+    res.json({ success: true, terminal: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /api/admin/terminals/:id/key — get current API key of a terminal
+app.get('/api/admin/terminals/:id/key', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, name, serial_number, api_key, last_seen_at FROM terminals WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'Terminal not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

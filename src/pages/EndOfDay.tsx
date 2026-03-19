@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -28,6 +28,8 @@ import {
   XCircle,
   DollarSign,
   Activity,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { mockEndOfDay } from "../data/mockData";
 
@@ -35,6 +37,29 @@ export default function EndOfDay() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+
+  // Detect missing EOD days in the existing data range
+  const missingDays = useMemo(() => {
+    if (mockEndOfDay.length < 2) return [];
+    const sorted = [...mockEndOfDay].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+    const dateSet = new Set(sorted.map((e) => e.date));
+    const first = new Date(sorted[0].date);
+    const last = new Date(sorted[sorted.length - 1].date);
+    const missing: string[] = [];
+    const cur = new Date(first);
+    cur.setDate(cur.getDate() + 1);
+    while (cur < last) {
+      const iso = cur.toISOString().split("T")[0];
+      if (!dateSet.has(iso)) missing.push(iso);
+      cur.setDate(cur.getDate() + 1);
+    }
+    return missing;
+  }, []);
+
+  const visibleAlerts = missingDays.filter((d) => !dismissedAlerts.includes(d));
 
   const filtered = mockEndOfDay.filter((eod) => {
     const matchesSearch =
@@ -165,6 +190,41 @@ export default function EndOfDay() {
           Export CSV
         </Button>
       </div>
+
+      {/* Missing EOD Alerts */}
+      {visibleAlerts.length > 0 && (
+        <div className="space-y-2">
+          {visibleAlerts.map((day) => (
+            <div
+              key={day}
+              className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-300 rounded-lg text-amber-800"
+            >
+              <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <div className="flex-1">
+                <span className="font-medium">Missing End of Day report — </span>
+                <span>
+                  {new Date(day + "T12:00:00").toLocaleDateString("en-GB", {
+                    weekday: "long",
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+                <span className="ml-2 text-sm text-amber-600">
+                  No EOD was recorded for this date.
+                </span>
+              </div>
+              <button
+                onClick={() => setDismissedAlerts((prev) => [...prev, day])}
+                className="p-1 rounded hover:bg-amber-100 transition-colors flex-shrink-0"
+                aria-label="Dismiss alert"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">

@@ -18,9 +18,9 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import Logo from "../assets/logo2.png";
-import { CircleQuestionMarkIcon, FileText, GitMerge, CalendarClock } from "lucide-react";
+import { CircleQuestionMarkIcon, FileText, GitMerge, CalendarClock, Building2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
+import { APP_PERMISSIONS, hasPermission, isSuperAdmin } from "../lib/permissions";
 
 type NavItem = {
   name: string;
@@ -30,6 +30,11 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  {
+    icon: <Building2 className="w-5 h-5" />,
+    name: "Customers",
+    path: "/customers",
+  },
   {
     icon: <GridIcon />,
     name: "Dashboard",
@@ -151,6 +156,9 @@ const AppSidebar: React.FC = () => {
   };
 
   const filteredNavItems = navItems.filter((item) => {
+    if (item.path === "/customers") {
+      return isSuperAdmin(user?.role);
+    }
     if (item.path === "/terminals") {
       return hasPermission(user?.role, APP_PERMISSIONS.VIEW_TERMINALS);
     }

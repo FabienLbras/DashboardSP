@@ -13,6 +13,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dashboard-local-secret';
 const JWT_EXPIRES_IN = '1h';
 const REFRESH_EXPIRES_IN = '7d';
 const MFA_TOKEN_EXPIRES_IN = '5m'; // short-lived token for MFA challenge
+const SUPER_ADMIN_ROLE = 'super_admin';
+
 const PERMISSIONS = {
   VIEW_PAYMENT_DATA: 'view_payment_data',
   VIEW_TRANSACTIONS: 'view_transactions',
@@ -30,6 +32,7 @@ const PERMISSIONS = {
 };
 const ALL_PERMISSIONS = Object.values(PERMISSIONS);
 const ROLE_PERMISSIONS = {
+  super_admin: ALL_PERMISSIONS,
   hotel_manager: ALL_PERMISSIONS,
   financial_manager: ALL_PERMISSIONS,
   admin: ALL_PERMISSIONS,
@@ -65,6 +68,51 @@ async function ensureSchema() {
       code_hash VARCHAR(255) NOT NULL,
       used BOOLEAN DEFAULT FALSE,
       used_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  // ── Multi-tenant: customers ──────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      phone VARCHAR(100),
+      address TEXT,
+      status VARCHAR(50) DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  // ── Properties (hotel / restaurant / retail) per customer ───────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS properties (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      type VARCHAR(50) DEFAULT 'hotel',
+      address TEXT,
+      status VARCHAR(50) DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  // ── Scope users to a customer (NULL = super-admin / platform user) ───────────
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
+  `);
+
+  // ── Password reset tokens ────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash VARCHAR(255) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
@@ -648,6 +696,264 @@ app.get('/api/dashboard/recent-activity', requireAuth, requirePermission(PERMISS
       'SELECT * FROM transactions ORDER BY created_at DESC LIMIT 10'
     );
     res.json({ activities: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ─── Super-admin guard ────────────────────────────────────────────────────────
+function requireSuperAdmin(req, res, next) {
+  if (normalizeRole(req.user.role) !== SUPER_ADMIN_ROLE) {
+    return res.status(403).json({ message: 'Super-admin access required' });
+  }
+  next();
+}
+
+// ─── Password reset (forgot / reset) ─────────────────────────────────────────
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email requis' });
+  try {
+    const { rows } = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    // Always return success to avoid email enumeration
+    if (rows[0]) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const hash = await bcrypt.hash(token, 10);
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1h
+      await pool.query(
+        'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+        [rows[0].id, hash, expires]
+      );
+      // In production: send email with reset link containing raw token
+      console.log(`[RESET] token for ${email}: ${token}`);
+    }
+    res.json({ message: 'If this email exists, a reset link has been sent.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, newPassword, confirmNewPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ message: 'Token et mot de passe requis' });
+  if (newPassword !== confirmNewPassword) return res.status(400).json({ message: 'Passwords do not match' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM password_reset_tokens WHERE used = FALSE AND expires_at > NOW() ORDER BY created_at DESC'
+    );
+    let matched = null;
+    for (const row of rows) {
+      const ok = await bcrypt.compare(token, row.token_hash);
+      if (ok) { matched = row; break; }
+    }
+    if (!matched) return res.status(400).json({ message: 'Token invalide ou expiré' });
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, matched.user_id]);
+    await pool.query('UPDATE password_reset_tokens SET used = TRUE WHERE id = $1', [matched.id]);
+    res.json({ message: 'Mot de passe réinitialisé' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) return res.status(400).json({ message: 'Champs requis' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) return res.status(401).json({ message: 'Mot de passe actuel incorrect' });
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.user.id]);
+    res.json({ message: 'Mot de passe modifié' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ─── Customers (super_admin only) ─────────────────────────────────────────────
+app.get('/api/admin/customers', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT c.*,
+        COUNT(DISTINCT p.id) AS property_count,
+        COUNT(DISTINCT u.id) AS user_count
+      FROM customers c
+      LEFT JOIN properties p ON p.customer_id = c.id
+      LEFT JOIN users u ON u.customer_id = c.id
+      GROUP BY c.id
+      ORDER BY c.created_at DESC
+    `);
+    res.json({ items: rows, total: rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.get('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ message: 'Customer not found' });
+    const { rows: props } = await pool.query('SELECT * FROM properties WHERE customer_id = $1 ORDER BY created_at', [req.params.id]);
+    const { rows: users } = await pool.query(
+      'SELECT id, email, name, role, created_at FROM users WHERE customer_id = $1 ORDER BY created_at',
+      [req.params.id]
+    );
+    res.json({ ...rows[0], properties: props, users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/customers', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { name, email, phone, address } = req.body;
+  if (!name || !email) return res.status(400).json({ message: 'Name and email required' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO customers (name, email, phone, address) VALUES ($1,$2,$3,$4) RETURNING *',
+      [name, email, phone || null, address || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ message: 'Email already exists' });
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.put('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { name, email, phone, address, status } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE customers SET name=$1, email=$2, phone=$3, address=$4, status=$5, updated_at=NOW() WHERE id=$6 RETURNING *',
+      [name, email, phone || null, address || null, status || 'active', req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'Customer not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.delete('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM customers WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ─── Properties per customer ───────────────────────────────────────────────────
+app.get('/api/admin/customers/:id/properties', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM properties WHERE customer_id = $1 ORDER BY created_at', [req.params.id]);
+    res.json({ items: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/customers/:id/properties', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { name, type, address } = req.body;
+  if (!name) return res.status(400).json({ message: 'Name required' });
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO properties (customer_id, name, type, address) VALUES ($1,$2,$3,$4) RETURNING *',
+      [req.params.id, name, type || 'hotel', address || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.put('/api/admin/customers/:cid/properties/:pid', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { name, type, address, status } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE properties SET name=$1, type=$2, address=$3, status=$4 WHERE id=$5 AND customer_id=$6 RETURNING *',
+      [name, type || 'hotel', address || null, status || 'active', req.params.pid, req.params.cid]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'Property not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.delete('/api/admin/customers/:cid/properties/:pid', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM properties WHERE id=$1 AND customer_id=$2', [req.params.pid, req.params.cid]);
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ─── Users per customer (admin management) ────────────────────────────────────
+app.get('/api/admin/customers/:id/users', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, email, name, role, created_at FROM users WHERE customer_id = $1 ORDER BY created_at',
+      [req.params.id]
+    );
+    res.json({ items: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/customers/:id/users', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { name, email, role, password } = req.body;
+  if (!name || !email || !role || !password) return res.status(400).json({ message: 'All fields required' });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const { rows } = await pool.query(
+      'INSERT INTO users (name, email, password_hash, role, customer_id) VALUES ($1,$2,$3,$4,$5) RETURNING id, email, name, role, created_at',
+      [name, email, hash, role, req.params.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ message: 'Email already exists' });
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.put('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { name, role } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE users SET name=$1, role=$2 WHERE id=$3 AND customer_id=$4 RETURNING id, email, name, role, created_at',
+      [name, role, req.params.uid, req.params.cid]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.delete('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM users WHERE id=$1 AND customer_id=$2', [req.params.uid, req.params.cid]);
+    res.json({ message: 'Deleted' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });

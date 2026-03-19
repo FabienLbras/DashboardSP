@@ -163,6 +163,56 @@ app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 async function ensureSchema() {
+  // ── Base tables first (safe on fresh DB) ─────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(100) NOT NULL DEFAULT 'front_office_operator',
+      customer_id INTEGER,
+      mfa_enabled BOOLEAN DEFAULT FALSE,
+      mfa_secret VARCHAR(255),
+      mfa_pending_secret VARCHAR(255),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      id SERIAL PRIMARY KEY,
+      reference VARCHAR(255),
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      currency VARCHAR(10) DEFAULT 'EUR',
+      state VARCHAR(50) DEFAULT 'pending',
+      payment_method VARCHAR(100),
+      terminal_id VARCHAR(255),
+      customer_name VARCHAR(255),
+      customer_email VARCHAR(255),
+      description TEXT,
+      customer_id INTEGER,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS terminals (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      serial_number VARCHAR(255) UNIQUE,
+      status VARCHAR(50) DEFAULT 'active',
+      location VARCHAR(255),
+      model VARCHAR(255),
+      customer_id INTEGER,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  // ── MFA columns (idempotent on existing DB) ───────────────────────────────────
   await pool.query(`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT FALSE,
@@ -248,10 +298,14 @@ async function ensureSchema() {
     )
   `);
 
-  // ── Ensure admin@dashboard.local is super_admin ──────────────────────────────
+  // ── Ensure default super_admin exists ────────────────────────────────────────
+  const bcryptMod = require('bcryptjs');
+  const defaultHash = await bcryptMod.hash('Admin1234!', 10);
   await pool.query(`
-    UPDATE users SET role = 'super_admin' WHERE email = 'admin@dashboard.local'
-  `);
+    INSERT INTO users (name, email, password_hash, role)
+    VALUES ('Super Admin', 'admin@dashboard.local', $1, 'super_admin')
+    ON CONFLICT (email) DO UPDATE SET role = 'super_admin'
+  `, [defaultHash]);
 }
 
 function normalizeRole(role) {

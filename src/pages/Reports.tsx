@@ -266,25 +266,65 @@ export default function Reports() {
     return { avgRevByDow, best, worst, weekdayRev, weekendRev, failRateByDow, monthlyTrend };
   }, []);
 
+  // ── Custom Tooltip ────────────────────────────────────────────────────────────
+  function CustomTooltip({
+    active, payload, label, yFormatter, xLabel,
+  }: {
+    active?: boolean;
+    payload?: any[];
+    label?: string;
+    yFormatter?: (v: number) => string;
+    xLabel?: string;
+  }) {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg px-3 py-2.5 text-sm">
+        <p className="font-semibold text-gray-800 dark:text-gray-100 mb-1.5">{label}</p>
+        {payload.map((p: any) => (
+          <div key={p.dataKey} className="flex items-center gap-2 text-xs">
+            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+            <span className="text-gray-500 dark:text-gray-400">{p.name}:</span>
+            <span className="font-medium text-gray-800 dark:text-gray-100">
+              {yFormatter && (p.name.includes("Revenue") || p.name.includes("$"))
+                ? yFormatter(p.value)
+                : p.value?.toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   // ── Chart renderer helper ─────────────────────────────────────────────────────
   function renderChart(
     type: "area" | "bar" | "line",
     data: any[],
     dataKeys: { key: string; color: string; label: string }[],
     xKey: string,
-    yFormatter?: (v: number) => string
+    yFormatter?: (v: number) => string,
+    xAxisLabel?: string,
+    yAxisLabel?: string,
   ) {
     const common = {
       data,
-      margin: { top: 5, right: 10, left: 10, bottom: 5 },
+      margin: { top: 10, right: 20, left: 20, bottom: xAxisLabel ? 30 : 10 },
     };
     const axis = (
       <>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-        <XAxis dataKey={xKey} tick={{ fontSize: 11 }} />
-        <YAxis tick={{ fontSize: 11 }} tickFormatter={yFormatter} width={70} />
-        <Tooltip formatter={(v: number) => yFormatter ? yFormatter(v) : v} />
-        <Legend />
+        <XAxis
+          dataKey={xKey}
+          tick={{ fontSize: 11 }}
+          label={xAxisLabel ? { value: xAxisLabel, position: "insideBottom", offset: -15, fontSize: 12, fill: "#6b7280" } : undefined}
+        />
+        <YAxis
+          tick={{ fontSize: 11 }}
+          tickFormatter={yFormatter}
+          width={yFormatter ? 80 : 50}
+          label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: "insideLeft", offset: 10, fontSize: 12, fill: "#6b7280" } : undefined}
+        />
+        <Tooltip content={<CustomTooltip yFormatter={yFormatter} />} />
+        <Legend wrapperStyle={{ paddingTop: 12, fontSize: 12 }} />
       </>
     );
     if (type === "bar") return (
@@ -296,14 +336,14 @@ export default function Reports() {
     if (type === "line") return (
       <LineChart {...common}>
         {axis}
-        {dataKeys.map((dk) => <Line key={dk.key} type="monotone" dataKey={dk.key} name={dk.label} stroke={dk.color} strokeWidth={2} dot={false} />)}
+        {dataKeys.map((dk) => <Line key={dk.key} type="monotone" dataKey={dk.key} name={dk.label} stroke={dk.color} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />)}
       </LineChart>
     );
     return (
       <AreaChart {...common}>
         {axis}
         {dataKeys.map((dk, i) => (
-          <Area key={dk.key} type="monotone" dataKey={dk.key} name={dk.label} stroke={dk.color} fill={dk.color} fillOpacity={i === 0 ? 0.15 : 0.08} strokeWidth={2} />
+          <Area key={dk.key} type="monotone" dataKey={dk.key} name={dk.label} stroke={dk.color} fill={dk.color} fillOpacity={i === 0 ? 0.15 : 0.08} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
         ))}
       </AreaChart>
     );
@@ -427,14 +467,18 @@ export default function Reports() {
               {txChartData.length === 0 ? (
                 <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No data for selected range</div>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  {renderChart(txChartType, txChartData,
+                <ResponsiveContainer width="100%" height={300}>
+                  {renderChart(
+                    txChartType,
+                    txChartData,
                     [
                       { key: "revenue", color: "#3b82f6", label: "Revenue ($)" },
                       { key: "count", color: "#10b981", label: "Transactions" },
                     ],
                     "date",
-                    (v) => `$${v.toLocaleString()}`
+                    (v) => `$${v.toLocaleString()}`,
+                    "Date",
+                    "Amount / Count",
                   )}
                 </ResponsiveContainer>
               )}
@@ -618,7 +662,7 @@ export default function Reports() {
               {eodChartData.length === 0 ? (
                 <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No data for selected range</div>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={300}>
                   {renderChart(
                     eodChartType,
                     eodChartData,
@@ -628,7 +672,9 @@ export default function Reports() {
                       label: eodChartMetric === "totalAmount" ? "Revenue ($)" : eodChartMetric === "totalTransactions" ? "Transactions" : "Failed Tx",
                     }],
                     "date",
-                    eodChartMetric === "totalAmount" ? (v) => `$${v.toLocaleString()}` : undefined
+                    eodChartMetric === "totalAmount" ? (v) => `$${v.toLocaleString()}` : undefined,
+                    "Date",
+                    eodChartMetric === "totalAmount" ? "Revenue ($)" : "Count",
                   )}
                 </ResponsiveContainer>
               )}

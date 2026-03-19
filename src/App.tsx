@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import SignIn from "./pages/AuthPages/SignIn";
+import ForgotPassword from "./pages/AuthPages/ForgotPassword";
+import ResetPassword from "./pages/AuthPages/ResetPassword";
 import AppLayout from "./layout/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import PermissionRoute from "./components/auth/PermissionRoute";
@@ -21,14 +23,23 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route 
-          path="/signin" 
+        <Route
+          path="/signin"
           element={
             <PublicRoute>
               <SignIn />
             </PublicRoute>
-          } 
+          }
         />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicRoute>
+              <ForgotPassword />
+            </PublicRoute>
+          }
+        />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/"
           element={

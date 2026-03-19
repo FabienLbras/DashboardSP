@@ -148,7 +148,7 @@ export default function SpAdmins() {
               No SP admins yet. Create the first one!
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

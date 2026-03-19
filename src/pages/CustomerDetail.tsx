@@ -292,6 +292,7 @@ export default function CustomerDetailPage() {
           {data.properties.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">{t("noPropertiesYet")}</p>
           ) : (
+            <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -334,6 +335,7 @@ export default function CustomerDetailPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -350,6 +352,7 @@ export default function CustomerDetailPage() {
           {data.users.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">{t("noUsersYet")}</p>
           ) : (
+            <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -396,6 +399,7 @@ export default function CustomerDetailPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

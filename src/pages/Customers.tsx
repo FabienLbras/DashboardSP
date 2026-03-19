@@ -146,7 +146,7 @@ export default function Customers() {
       </div>
 
       {/* Summary */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {[
           { label: t("totalCustomers"), value: customers.length, icon: <Building2 className="w-4 h-4" /> },
           { label: t("active"), value: active, icon: <Building2 className="w-4 h-4 text-green-500" />, color: "text-green-600" },
@@ -210,7 +210,7 @@ export default function Customers() {
               {customers.length === 0 ? t("noCustomersYet") : t("noCustomersMatchFilters")}
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

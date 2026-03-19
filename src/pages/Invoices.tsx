@@ -115,7 +115,7 @@ export default function Invoices() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -232,6 +232,7 @@ export default function Invoices() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -286,6 +287,7 @@ export default function Invoices() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

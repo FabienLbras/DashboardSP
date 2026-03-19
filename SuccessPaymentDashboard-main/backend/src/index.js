@@ -65,7 +65,7 @@ function emailBase(title, content) {
 </html>`;
 }
 
-function invitationEmail({ name, email, password, customerName, propertyRoles, loginUrl }) {
+function invitationEmail({ name, email, password, customerName = 'Success Payment', propertyRoles = [], loginUrl }) {
   const rolesHtml = propertyRoles.length > 0
     ? propertyRoles.map(pr => `<li style="margin:4px 0;color:#475569;">${pr.property_name} <span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;">${pr.role.replace(/_/g, ' ')}</span></li>`).join('')
     : '<li style="color:#94a3b8;">No properties assigned yet</li>';
@@ -927,6 +927,30 @@ app.delete('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.MANA
     await cacheInvalidatePrefix('terminals:');
     await cacheInvalidatePrefix('dashboard:');
     res.json({ message: 'Supprimé' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ─── EOD Reports (dashboard read) ────────────────────────────────────────────
+app.get('/api/eod-reports', requireAuth, requirePermission(PERMISSIONS.VIEW_EOD_REPORTS), async (req, res) => {
+  try {
+    const { clause, params } = tenantFilter(req);
+    const cacheKey = `eod:${req.user.customer_id || 'admin'}:${req.query.customer_id || ''}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+    const { rows } = await pool.query(
+      `SELECT e.*, t.name AS terminal_name, t.serial_number AS terminal_serial
+       FROM eod_reports e
+       LEFT JOIN terminals t ON t.id = e.terminal_id
+       ${clause ? clause.replace('customer_id', 'e.customer_id') : ''}
+       ORDER BY e.report_date DESC`,
+      params
+    );
+    const result = { items: rows, total: rows.length };
+    await cacheSet(cacheKey, result, TTL.MEDIUM);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });

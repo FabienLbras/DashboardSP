@@ -7,6 +7,7 @@ const QRCode = require('qrcode');
 const crypto = require('crypto');
 const { Resend } = require('resend');
 const pool = require('./db');
+const { cacheGet, cacheSet, cacheDel, cacheInvalidatePrefix, TTL } = require('./cache');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -666,11 +667,16 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
 app.get('/api/payment/transactions', requireAuth, requirePermission(PERMISSIONS.VIEW_TRANSACTIONS), async (req, res) => {
   try {
     const { clause, params } = tenantFilter(req);
+    const cacheKey = `transactions:${req.user.customer_id || 'admin'}:${req.query.customer_id || ''}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
     const { rows } = await pool.query(
       `SELECT * FROM transactions ${clause} ORDER BY created_at DESC`,
       params
     );
-    res.json({ items: rows, total: rows.length });
+    const result = { items: rows, total: rows.length };
+    await cacheSet(cacheKey, result, TTL.MEDIUM);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -721,6 +727,8 @@ app.post('/api/payment/transactions', requireAuth, requirePermission(PERMISSIONS
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [reference, amount, currency || 'EUR', state || 'pending', payment_method, terminal_id, customer_name, customer_email, description]
     );
+    await cacheInvalidatePrefix('transactions:');
+    await cacheInvalidatePrefix('dashboard:');
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -738,6 +746,8 @@ app.put('/api/payment/transactions/:id', requireAuth, requirePermission(PERMISSI
       [amount, currency, state, payment_method, customer_name, customer_email, description, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ message: 'Transaction introuvable' });
+    await cacheInvalidatePrefix('transactions:');
+    await cacheInvalidatePrefix('dashboard:');
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -748,6 +758,8 @@ app.put('/api/payment/transactions/:id', requireAuth, requirePermission(PERMISSI
 app.delete('/api/payment/transactions/:id', requireAuth, requirePermission(PERMISSIONS.MODIFY_SYSTEM_CONFIG), async (req, res) => {
   try {
     await pool.query('DELETE FROM transactions WHERE id = $1', [req.params.id]);
+    await cacheInvalidatePrefix('transactions:');
+    await cacheInvalidatePrefix('dashboard:');
     res.json({ message: 'Supprimé' });
   } catch (err) {
     console.error(err);
@@ -759,11 +771,16 @@ app.delete('/api/payment/transactions/:id', requireAuth, requirePermission(PERMI
 app.get('/api/terminals', requireAuth, requirePermission(PERMISSIONS.VIEW_TERMINALS), async (req, res) => {
   try {
     const { clause, params } = tenantFilter(req);
+    const cacheKey = `terminals:${req.user.customer_id || 'admin'}:${req.query.customer_id || ''}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
     const { rows } = await pool.query(
       `SELECT * FROM terminals ${clause} ORDER BY created_at DESC`,
       params
     );
-    res.json({ items: rows, total: rows.length });
+    const result = { items: rows, total: rows.length };
+    await cacheSet(cacheKey, result, TTL.MEDIUM);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -794,6 +811,8 @@ app.post('/api/terminals', requireAuth, requirePermission(PERMISSIONS.MANAGE_TER
       'INSERT INTO terminals (name, serial_number, status, location, model, customer_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
       [name, serial_number, status || 'active', location, model, customer_id]
     );
+    await cacheInvalidatePrefix('terminals:');
+    await cacheInvalidatePrefix('dashboard:');
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -809,6 +828,8 @@ app.put('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.MANAGE_
       [name, status, location, model, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ message: 'Terminal introuvable' });
+    await cacheInvalidatePrefix('terminals:');
+    await cacheInvalidatePrefix('dashboard:');
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -819,6 +840,8 @@ app.put('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.MANAGE_
 app.delete('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.MANAGE_TERMINALS), async (req, res) => {
   try {
     await pool.query('DELETE FROM terminals WHERE id = $1', [req.params.id]);
+    await cacheInvalidatePrefix('terminals:');
+    await cacheInvalidatePrefix('dashboard:');
     res.json({ message: 'Supprimé' });
   } catch (err) {
     console.error(err);
@@ -830,6 +853,9 @@ app.delete('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.MANA
 app.get('/api/dashboard/overview', requireAuth, requirePermission(PERMISSIONS.VIEW_PAYMENT_DATA), async (req, res) => {
   try {
     const { clause, params } = tenantFilter(req);
+    const cacheKey = `dashboard:overview:${req.user.customer_id || 'admin'}:${req.query.customer_id || ''}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
     const txResult = await pool.query(`
       SELECT
         COUNT(*) AS total_transactions,
@@ -842,10 +868,9 @@ app.get('/api/dashboard/overview', requireAuth, requirePermission(PERMISSIONS.VI
       `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'active') AS active FROM terminals ${clause}`,
       params
     );
-    res.json({
-      transactions: txResult.rows[0],
-      terminals: termResult.rows[0],
-    });
+    const result = { transactions: txResult.rows[0], terminals: termResult.rows[0] };
+    await cacheSet(cacheKey, result, TTL.SHORT);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -970,6 +995,9 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
 // ─── Customers (super_admin only) ─────────────────────────────────────────────
 app.get('/api/admin/customers', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
+    const cacheKey = 'customers:list';
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
     const { rows } = await pool.query(`
       SELECT c.*,
         COUNT(DISTINCT p.id) AS property_count,
@@ -980,7 +1008,9 @@ app.get('/api/admin/customers', requireAuth, requireSuperAdmin, async (req, res)
       GROUP BY c.id
       ORDER BY c.created_at DESC
     `);
-    res.json({ items: rows, total: rows.length });
+    const result = { items: rows, total: rows.length };
+    await cacheSet(cacheKey, result, TTL.LONG);
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -1028,6 +1058,7 @@ app.post('/api/admin/customers', requireAuth, requireSuperAdmin, async (req, res
       'INSERT INTO customers (name, email, phone, address) VALUES ($1,$2,$3,$4) RETURNING *',
       [name, email, phone || null, address || null]
     );
+    await cacheDel('customers:list');
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'Email already exists' });
@@ -1044,6 +1075,7 @@ app.put('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, 
       [name, email, phone || null, address || null, status || 'active', req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ message: 'Customer not found' });
+    await cacheDel('customers:list');
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -1054,6 +1086,7 @@ app.put('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, 
 app.delete('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     await pool.query('DELETE FROM customers WHERE id = $1', [req.params.id]);
+    await cacheDel('customers:list');
     res.json({ message: 'Deleted' });
   } catch (err) {
     console.error(err);

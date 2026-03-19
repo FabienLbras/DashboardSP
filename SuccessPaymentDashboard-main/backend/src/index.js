@@ -5,11 +5,117 @@ const bcrypt = require('bcryptjs');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
+const { Resend } = require('resend');
 const pool = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dashboard-local-secret';
+const APP_URL = process.env.APP_URL || 'http://localhost:5173';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+
+// ── Resend email client ───────────────────────────────────────────────────────
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+async function sendEmail({ to, subject, html }) {
+  if (!resend) {
+    console.log(`[EMAIL] To: ${to} | Subject: ${subject}\n(Set RESEND_API_KEY to send real emails)`);
+    return;
+  }
+  try {
+    await resend.emails.send({ from: EMAIL_FROM, to, subject, html });
+  } catch (err) {
+    console.error('[EMAIL] Send failed:', err?.message);
+  }
+}
+
+// ── Email templates ───────────────────────────────────────────────────────────
+function emailBase(title, content) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:32px 40px;text-align:center;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Success Payment</h1>
+            <p style="margin:6px 0 0;color:#bfdbfe;font-size:13px;">Secure Payment Management Platform</p>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr><td style="padding:40px;">${content}</td></tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8fafc;padding:24px 40px;border-top:1px solid #e2e8f0;text-align:center;">
+            <p style="margin:0;color:#94a3b8;font-size:12px;">© ${new Date().getFullYear()} Success Payment. This email was sent automatically — please do not reply.</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function invitationEmail({ name, email, password, customerName, propertyRoles, loginUrl }) {
+  const rolesHtml = propertyRoles.length > 0
+    ? propertyRoles.map(pr => `<li style="margin:4px 0;color:#475569;">${pr.property_name} <span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;">${pr.role.replace(/_/g, ' ')}</span></li>`).join('')
+    : '<li style="color:#94a3b8;">No properties assigned yet</li>';
+
+  return emailBase('You\'ve been invited to Success Payment', `
+    <h2 style="margin:0 0 8px;color:#0f172a;font-size:20px;font-weight:700;">Welcome to ${customerName}!</h2>
+    <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">Hi ${name}, your account has been created on the Success Payment platform. Here are your login credentials:</p>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;width:100px;">Email</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600;">${email}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;">Password</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600;font-family:monospace;">${password}</td>
+        </tr>
+      </table>
+    </div>
+
+    <h3 style="margin:0 0 10px;color:#0f172a;font-size:14px;font-weight:600;">Your property access:</h3>
+    <ul style="margin:0 0 28px;padding-left:20px;">${rolesHtml}</ul>
+
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px 18px;margin-bottom:28px;">
+      <p style="margin:0;color:#92400e;font-size:13px;line-height:1.5;">⚠️ <strong>Important:</strong> Please change your password after your first login and enable two-factor authentication for security.</p>
+    </div>
+
+    <div style="text-align:center;">
+      <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">Sign In to Dashboard</a>
+    </div>
+  `);
+}
+
+function passwordResetEmail({ name, resetUrl }) {
+  return emailBase('Reset your password', `
+    <h2 style="margin:0 0 8px;color:#0f172a;font-size:20px;font-weight:700;">Reset your password</h2>
+    <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">Hi ${name || 'there'}, we received a request to reset the password for your Success Payment account.</p>
+
+    <div style="text-align:center;margin-bottom:28px;">
+      <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">Reset Password</a>
+    </div>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;margin-bottom:8px;">
+      <p style="margin:0 0 6px;color:#64748b;font-size:12px;">Or copy this link into your browser:</p>
+      <p style="margin:0;color:#2563eb;font-size:12px;word-break:break-all;">${resetUrl}</p>
+    </div>
+
+    <p style="margin:20px 0 0;color:#94a3b8;font-size:13px;line-height:1.5;">This link expires in <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email — your password will not change.</p>
+  `);
+}
 const JWT_EXPIRES_IN = '1h';
 const REFRESH_EXPIRES_IN = '7d';
 const MFA_TOKEN_EXPIRES_IN = '5m'; // short-lived token for MFA challenge
@@ -805,8 +911,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
         [rows[0].id, hash, expires]
       );
-      // In production: send email with reset link containing raw token
-      console.log(`[RESET] token for ${email}: ${token}`);
+      const { rows: userRows } = await pool.query('SELECT name FROM users WHERE id = $1', [rows[0].id]);
+      const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+      sendEmail({
+        to: email,
+        subject: 'Reset your Success Payment password',
+        html: passwordResetEmail({ name: userRows[0]?.name, resetUrl }),
+      });
     }
     res.json({ message: 'If this email exists, a reset link has been sent.' });
   } catch (err) {
@@ -1075,6 +1186,22 @@ app.post('/api/admin/customers/:id/users', requireAuth, requireSuperAdmin, async
        WHERE upr.user_id = $1`,
       [user.id]
     );
+    // Get customer name for the invitation email
+    const { rows: custRows } = await pool.query('SELECT name FROM customers WHERE id = $1', [req.params.id]);
+    const customerName = custRows[0]?.name || 'your organization';
+    // Send invitation email (async, don't block response)
+    sendEmail({
+      to: email,
+      subject: `You've been invited to ${customerName} on Success Payment`,
+      html: invitationEmail({
+        name,
+        email,
+        password,
+        customerName,
+        propertyRoles: roleRows,
+        loginUrl: `${APP_URL}/signin`,
+      }),
+    });
     res.status(201).json({ ...user, property_roles: roleRows });
   } catch (err) {
     await client.query('ROLLBACK');

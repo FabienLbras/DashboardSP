@@ -1,0 +1,189 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "../components/ui/select";
+import { ArrowLeft, Loader2, AlertCircle, Save } from "lucide-react";
+import { CustomerService } from "../services/customerService";
+import { useToast } from "../hooks/useToast";
+
+type Form = { name: string; email: string; phone: string; address: string; status: "active" | "inactive" };
+
+export default function CustomerEdit() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const customerId = Number(id);
+
+  const [form, setForm] = useState<Form>({ name: "", email: "", phone: "", address: "", status: "active" });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    CustomerService.get(customerId)
+      .then((c) => {
+        setForm({ name: c.name, email: c.email, phone: c.phone || "", address: c.address || "", status: c.status });
+      })
+      .catch((e) => setLoadError(e?.response?.data?.message || "Failed to load customer"))
+      .finally(() => setLoading(false));
+  }, [customerId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    if (!form.name.trim()) { setFormError("Name is required."); return; }
+    if (!form.email.trim()) { setFormError("Email is required."); return; }
+    setSaving(true);
+    try {
+      await CustomerService.update(customerId, form);
+      toast({ title: "Customer updated successfully" });
+      navigate(`/customers/${customerId}`);
+    } catch (e: any) {
+      setFormError(e?.response?.data?.message || "Save failed. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin mr-2 text-blue-600" />
+        <span className="text-muted-foreground">Loading customer…</span>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex items-center gap-2 p-4 text-red-700 bg-red-50 rounded-md">
+        <AlertCircle className="h-5 w-5" />
+        {loadError}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`/customers/${customerId}`)}
+            className="gap-1"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">Edit Customer</h1>
+            <p className="text-muted-foreground text-sm">Update customer information</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Customer Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {formError && (
+              <div className="flex items-center gap-2 p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded-md">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {formError}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Acme Hotels Ltd."
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="contact@acme.com"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="+33 1 23 45 67 89"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                placeholder="123 Main St, Paris"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(`/customers/${customerId}`)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white gap-2">
+                {saving ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Saving…</>
+                ) : (
+                  <><Save className="h-4 w-4" />Save Changes</>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { CustomerFilterProvider } from "./context/CustomerFilterContext";
 import SignIn from "./pages/AuthPages/SignIn";
 import ForgotPassword from "./pages/AuthPages/ForgotPassword";
 import ResetPassword from "./pages/AuthPages/ResetPassword";
@@ -18,6 +19,7 @@ import Reconciliation from "./pages/Reconciliation";
 import EndOfDay from "./pages/EndOfDay";
 import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
+import CustomerEdit from "./pages/CustomerEdit";
 import Reports from "./pages/Reports";
 import { APP_PERMISSIONS } from "./lib/permissions";
 
@@ -25,6 +27,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <CustomerFilterProvider>
       <Routes>
         <Route
           path="/signin"
@@ -73,6 +76,7 @@ export default function App() {
           />
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:id" element={<CustomerDetail />} />
+          <Route path="customers/:id/edit" element={<CustomerEdit />} />
           <Route path="reconciliation" element={<Reconciliation />} />
           <Route
             path="reports"
@@ -94,6 +98,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/signin" />} />
       </Routes>
+      </CustomerFilterProvider>
     </AuthProvider>
   );
 }

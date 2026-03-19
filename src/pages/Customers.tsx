@@ -257,7 +257,7 @@ export default function Customers() {
                             <DropdownMenuItem onClick={() => navigate(`/customers/${c.id}`)}>
                               <Eye className="h-4 w-4 mr-2" />View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(c)}>
+                            <DropdownMenuItem onClick={() => navigate(`/customers/${c.id}/edit`)}>
                               <Edit className="h-4 w-4 mr-2" />Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setDeleteTarget(c)} className="text-red-600">

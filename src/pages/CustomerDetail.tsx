@@ -189,6 +189,7 @@ export default function CustomerDetailPage() {
           <ArrowLeft className="h-4 w-4 mr-1" />Customers
         </Button>
         <div className="flex-1">
+
           <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
             <Building2 className="h-8 w-8 text-blue-600" />
             {data.name}
@@ -202,6 +203,13 @@ export default function CustomerDetailPage() {
             </Badge>
           </div>
         </div>
+        <Button
+          size="sm"
+          onClick={() => navigate(`/customers/${customerId}/edit`)}
+          className="bg-blue-700 hover:bg-blue-800 text-white gap-1 shrink-0"
+        >
+          <Edit className="h-4 w-4" />Edit Customer
+        </Button>
       </div>
 
       {/* Summary */}

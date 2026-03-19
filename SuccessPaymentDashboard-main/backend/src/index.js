@@ -138,8 +138,10 @@ const PERMISSIONS = {
   MODIFY_GLOBAL_SETTINGS: 'modify_global_settings',
 };
 const ALL_PERMISSIONS = Object.values(PERMISSIONS);
+const SP_ADMIN_ROLE = 'sp_admin';
 const ROLE_PERMISSIONS = {
   super_admin: ALL_PERMISSIONS,
+  sp_admin: ALL_PERMISSIONS.filter(p => p !== PERMISSIONS.MANAGE_USERS),
   hotel_manager: ALL_PERMISSIONS,
   financial_manager: ALL_PERMISSIONS,
   admin: ALL_PERMISSIONS,
@@ -1282,6 +1284,57 @@ app.put('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmin, 
 app.delete('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     await pool.query('DELETE FROM users WHERE id=$1 AND customer_id=$2', [req.params.uid, req.params.cid]);
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ─── SP Admins (super_admin only) ─────────────────────────────────────────────
+app.get('/api/admin/sp-admins', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, email, role, created_at FROM users WHERE role = $1 ORDER BY created_at DESC`,
+      [SP_ADMIN_ROLE]
+    );
+    res.json({ items: rows, total: rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.post('/api/admin/sp-admins', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) return res.status(400).json({ message: 'name, email and password required' });
+  if (password.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters' });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const { rows } = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role, customer_id) VALUES ($1,$2,$3,$4,NULL) RETURNING id, name, email, role, created_at`,
+      [name, email, hash, SP_ADMIN_ROLE]
+    );
+    const inviteUrl = `${APP_URL}/signin`;
+    sendEmail({
+      to: email,
+      subject: 'Your Success Payment admin account',
+      html: invitationEmail({ name, email, password, loginUrl: inviteUrl }),
+    });
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ message: 'Email already exists' });
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.delete('/api/admin/sp-admins/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT role FROM users WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ message: 'User not found' });
+    if (rows[0].role !== SP_ADMIN_ROLE) return res.status(403).json({ message: 'Can only delete sp_admin users here' });
+    await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
     res.json({ message: 'Deleted' });
   } catch (err) {
     console.error(err);

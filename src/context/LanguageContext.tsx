@@ -7,6 +7,7 @@ const translations = {
     // Nav
     dashboard: "Dashboard",
     customers: "Customers",
+    spAdmins: "SP Admins",
     transactions: "Transactions",
     terminals: "Terminals",
     reports: "Reports",
@@ -369,6 +370,7 @@ const translations = {
     // Nav
     dashboard: "Tableau de bord",
     customers: "Clients",
+    spAdmins: "SP Admins",
     transactions: "Transactions",
     terminals: "Terminaux",
     reports: "Rapports",

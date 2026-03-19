@@ -24,7 +24,8 @@ import {
 import { CustomerService, Customer } from "../services/customerService";
 import { useToast } from "../hooks/useToast";
 
-const emptyForm = { name: "", email: "", phone: "", address: "", status: "active" as const };
+type CustomerForm = { name: string; email: string; phone: string; address: string; status: "active" | "inactive" };
+const emptyForm: CustomerForm = { name: "", email: "", phone: "", address: "", status: "active" };
 
 export default function Customers() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export default function Customers() {
   // Create / Edit dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<CustomerForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 

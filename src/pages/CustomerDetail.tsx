@@ -40,8 +40,11 @@ const typeIcon = (type: string) => {
   return <Hotel className="h-4 w-4 text-blue-500" />;
 };
 
-const emptyProp = { name: "", type: "hotel", address: "", status: "active" as const };
-const emptyUser = { name: "", email: "", role: APP_ROLES.FRONT_OFFICE_OPERATOR, password: "" };
+type PropForm = { name: string; type: string; address: string; status: "active" | "inactive" };
+type UserForm = { name: string; email: string; role: string; password: string };
+
+const emptyProp: PropForm = { name: "", type: "hotel", address: "", status: "active" };
+const emptyUser: UserForm = { name: "", email: "", role: APP_ROLES.FRONT_OFFICE_OPERATOR, password: "" };
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,7 +59,7 @@ export default function CustomerDetailPage() {
   // Property dialog
   const [propDialog, setPropDialog] = useState(false);
   const [editProp, setEditProp] = useState<Property | null>(null);
-  const [propForm, setPropForm] = useState(emptyProp);
+  const [propForm, setPropForm] = useState<PropForm>(emptyProp);
   const [propSaving, setPropSaving] = useState(false);
   const [propError, setPropError] = useState("");
   const [deleteProp, setDeleteProp] = useState<Property | null>(null);
@@ -64,7 +67,7 @@ export default function CustomerDetailPage() {
   // User dialog
   const [userDialog, setUserDialog] = useState(false);
   const [editUser, setEditUser] = useState<CustomerUser | null>(null);
-  const [userForm, setUserForm] = useState(emptyUser);
+  const [userForm, setUserForm] = useState<UserForm>(emptyUser);
   const [userSaving, setUserSaving] = useState(false);
   const [userError, setUserError] = useState("");
   const [deleteUser, setDeleteUser] = useState<CustomerUser | null>(null);

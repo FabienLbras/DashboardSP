@@ -116,6 +116,11 @@ async function ensureSchema() {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  // ── Ensure admin@dashboard.local is super_admin ──────────────────────────────
+  await pool.query(`
+    UPDATE users SET role = 'super_admin' WHERE email = 'admin@dashboard.local'
+  `);
 }
 
 function normalizeRole(role) {

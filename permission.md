@@ -10,21 +10,21 @@ This document describes the role-based access model currently implemented in the
 - `front_office_manager` 
 - `front_office_operator` 
 
-## Permission Keys
+## Permission Keys   
 
-- `view_payment_data`
-- `view_transactions`
-- `generate_reports`
-- `export_reports`
-- `view_eod_reports`
-- `use_virtual_terminal`
-- `view_terminals`
-- `manage_terminals`
-- `access_ecommerce_data`
-- `access_standard_premium`
-- `manage_users`
-- `modify_system_config`
-- `modify_global_settings`
+- `view_payment_data`   
+- `view_transactions`   
+- `generate_reports`   
+- `export_reports`   
+- `view_eod_reports`   
+- `use_virtual_terminal`   
+- `view_terminals`   
+- `manage_terminals`   
+- `access_ecommerce_data`   
+- `access_standard_premium`   
+- `manage_users`   
+- `modify_system_config`   
+- `modify_global_settings`   
 
 ## Role Access Summary
 

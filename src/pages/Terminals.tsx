@@ -10,74 +10,19 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { 
-  Plus, 
-  Settings,
+import {
+  Plus,
   Wifi,
   WifiOff,
-  MoreHorizontal,
-  Activity,
-  Power,
-  PowerOff
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "../components/ui/dropdown-menu";
 import { mockTerminals } from "../data/mockData";
-import { useToast } from "../hooks/useToast";
-import { TerminalConfigDialog } from "../components/terminals/TerminalConfigDialog";
-import TerminalActivityDialog from "../components/terminals/TerminalActivityDialog";
 import { useAuth } from "../context/AuthContext";
 import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
 export default function Terminals() {
   const { user } = useAuth();
   const [terminals, setTerminals] = useState(mockTerminals);
-  const [configDialog, setConfigDialog] = useState<{ open: boolean; terminal: any }>({ 
-    open: false, 
-    terminal: null 
-  });
-  const [activityDialog, setActivityDialog] = useState<{ open: boolean; terminal: any }>({ 
-    open: false, 
-    terminal: null 
-  });
-  const { toast } = useToast();
   const canManageTerminals = hasPermission(user?.role, APP_PERMISSIONS.MANAGE_TERMINALS);
-
-  const toggleTerminalStatus = (terminalId: string) => {
-    setTerminals(prev => prev.map(terminal => {
-      if (terminal.id === terminalId) {
-        const newStatus = terminal.status === "online" ? "offline" : "online";
-        toast({
-          title: `Terminal ${newStatus}`,
-          description: `Terminal ${terminalId} has been ${newStatus === "online" ? "activated" : "deactivated"}`,
-        });
-        return { 
-          ...terminal, 
-          status: newStatus,
-          lastSeen: newStatus === "online" ? new Date().toISOString() : terminal.lastSeen
-        };
-      }
-      return terminal;
-    }));
-  };
-
-  const handleConfigSave = (terminalId: string, config: any) => {
-    setTerminals(prev => prev.map(terminal => {
-      if (terminal.id === terminalId) {
-        return { ...terminal, name: config.name, location: config.location };
-      }
-      return terminal;
-    }));
-    toast({
-      title: "Configuration saved",
-      description: `Settings for terminal ${terminalId} have been updated`,
-    });
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -184,7 +129,6 @@ export default function Terminals() {
                 <TableHead>Last Seen</TableHead>
                 <TableHead>Today's Transactions</TableHead>
                 <TableHead>Today's Revenue</TableHead>
-                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -200,71 +144,6 @@ export default function Terminals() {
                   <TableCell>{terminal.todayTransactions}</TableCell>
                   <TableCell className="font-medium">
                     ${Number(terminal.todayRevenue).toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      {canManageTerminals ? (
-                        <>
-                          <Button
-                            variant={terminal.status === "online" ? "destructive" : "default"}
-                            className={`${terminal.status === "online" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"} text-white`}
-                            size="sm"
-                            onClick={() => toggleTerminalStatus(terminal.id)}
-                          >
-                            {terminal.status === "online" ? (
-                              <>
-                                <PowerOff className="h-4 w-4 mr-1" />
-                                Deactivate
-                              </>
-                            ) : (
-                              <>
-                                <Power className="h-4 w-4 mr-1" />
-                                Activate
-                              </>
-                            )}
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                onClick={() => setConfigDialog({ open: true, terminal })}
-                              >
-                                <Settings className="h-4 w-4 mr-2" />
-                                Configure
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => setActivityDialog({ open: true, terminal })}
-                              >
-                                <Activity className="h-4 w-4 mr-2" />
-                                View Activity
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              {terminal.status === "offline" && (
-                                <DropdownMenuItem 
-                                  onClick={() => toggleTerminalStatus(terminal.id)}
-                                >
-                                  <Wifi className="h-4 w-4 mr-2" />
-                                  Reconnect
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setActivityDialog({ open: true, terminal })}
-                        >
-                          <Activity className="h-4 w-4 mr-1" />
-                          View Activity
-                        </Button>
-                      )}
-                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -318,19 +197,6 @@ export default function Terminals() {
         </CardContent>
       </Card>
 
-      {/* Dialogs */}
-      <TerminalConfigDialog
-        terminal={configDialog.terminal}
-        open={configDialog.open}
-        onOpenChange={(open) => setConfigDialog({ open, terminal: null })}
-        onSave={handleConfigSave}
-      />
-
-      <TerminalActivityDialog
-        terminal={activityDialog.terminal}
-        open={activityDialog.open}
-        onOpenChange={(open) => setActivityDialog({ open, terminal: null })}
-      />
     </div>
   );
 }

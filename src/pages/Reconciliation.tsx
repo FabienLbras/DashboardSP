@@ -1,5 +1,7 @@
 import { useState } from "react";
-import CustomerFilterBanner from "../components/common/CustomerFilterBanner";
+import { useAuth } from "../context/AuthContext";
+import { useCustomerFilter } from "../context/CustomerFilterContext";
+import { isSuperAdmin } from "../lib/permissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -126,6 +128,10 @@ const mockReconciliation: ReconciliationRecord[] = [
 ];
 
 export default function Reconciliation() {
+  const { user } = useAuth();
+  const { selectedCustomer, setSelectedCustomer, customers } = useCustomerFilter();
+  const isAdmin = isSuperAdmin(user?.role);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
@@ -222,7 +228,6 @@ export default function Reconciliation() {
 
   return (
     <div className="space-y-6">
-      <CustomerFilterBanner />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -357,6 +362,22 @@ export default function Reconciliation() {
                 <SelectItem value="month">This Month</SelectItem>
               </SelectContent>
             </Select>
+            {isAdmin && (
+              <Select
+                value={selectedCustomer ? String(selectedCustomer.id) : "all"}
+                onValueChange={(v) => setSelectedCustomer(v === "all" ? null : (customers.find((c) => String(c.id) === v) ?? null))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All Customers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </CardContent>
       </Card>

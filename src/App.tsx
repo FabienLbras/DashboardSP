@@ -20,6 +20,7 @@ import EndOfDay from "./pages/EndOfDay";
 import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
 import CustomerEdit from "./pages/CustomerEdit";
+import CustomerNew from "./pages/CustomerNew";
 import Reports from "./pages/Reports";
 import { APP_PERMISSIONS } from "./lib/permissions";
 
@@ -75,6 +76,7 @@ export default function App() {
             }
           />
           <Route path="customers" element={<Customers />} />
+          <Route path="customers/new" element={<CustomerNew />} />
           <Route path="customers/:id" element={<CustomerDetail />} />
           <Route path="customers/:id/edit" element={<CustomerEdit />} />
           <Route path="reconciliation" element={<Reconciliation />} />

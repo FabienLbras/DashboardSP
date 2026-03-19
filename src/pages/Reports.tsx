@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import CustomerFilterBanner from "../components/common/CustomerFilterBanner";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "../components/ui/card";
@@ -407,7 +406,6 @@ export default function Reports() {
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <CustomerFilterBanner />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

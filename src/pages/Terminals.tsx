@@ -1,8 +1,12 @@
 import { useState } from "react";
-import CustomerFilterBanner from "../components/common/CustomerFilterBanner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Search } from "lucide-react";
+import { useCustomerFilter } from "../context/CustomerFilterContext";
+import { isSuperAdmin } from "../lib/permissions";
 import {
   Table,
   TableBody,
@@ -22,8 +26,21 @@ import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
 export default function Terminals() {
   const { user } = useAuth();
+  const { selectedCustomer, setSelectedCustomer, customers } = useCustomerFilter();
+  const isAdmin = isSuperAdmin(user?.role);
   const [terminals, setTerminals] = useState(mockTerminals);
+  const [searchTerm, setSearchTerm] = useState("");
   const canManageTerminals = hasPermission(user?.role, APP_PERMISSIONS.MANAGE_TERMINALS);
+
+  const filteredTerminals = terminals.filter((t) => {
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    return (
+      t.id.toLowerCase().includes(q) ||
+      t.name.toLowerCase().includes(q) ||
+      t.location.toLowerCase().includes(q)
+    );
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -48,7 +65,6 @@ export default function Terminals() {
 
   return (
     <div className="space-y-6">
-      <CustomerFilterBanner />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -112,12 +128,48 @@ export default function Terminals() {
         </Card>
       </div>
 
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 flex-wrap">
+            <div className="flex-1 min-w-64 relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by ID, name or location..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {isAdmin && (
+              <Select
+                value={selectedCustomer ? String(selectedCustomer.id) : "all"}
+                onValueChange={(v) => setSelectedCustomer(v === "all" ? null : (customers.find((c) => String(c.id) === v) ?? null))}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All Customers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Terminals Table */}
       <Card>
         <CardHeader>
           <CardTitle>Connected Terminals</CardTitle>
           <CardDescription>
-            All payment terminals and their current status
+            {filteredTerminals.length} terminal{filteredTerminals.length !== 1 ? "s" : ""} found
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -134,7 +186,7 @@ export default function Terminals() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {terminals.map((terminal) => (
+              {filteredTerminals.map((terminal) => (
                 <TableRow key={terminal.id}>
                   <TableCell className="font-medium">{terminal.id}</TableCell>
                   <TableCell>{terminal.name}</TableCell>

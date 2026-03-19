@@ -1,5 +1,4 @@
 import { useState } from "react";
-import CustomerFilterBanner from "../components/common/CustomerFilterBanner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -99,7 +98,6 @@ export default function Invoices() {
 
   return (
     <div className="space-y-6">
-      <CustomerFilterBanner />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

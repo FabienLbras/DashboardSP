@@ -1,0 +1,156 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "../components/ui/select";
+import { ArrowLeft, Loader2, AlertCircle, Plus } from "lucide-react";
+import { CustomerService } from "../services/customerService";
+import { useToast } from "../hooks/useToast";
+
+type Form = { name: string; email: string; phone: string; address: string; status: "active" | "inactive" };
+
+export default function CustomerNew() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const [form, setForm] = useState<Form>({ name: "", email: "", phone: "", address: "", status: "active" });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    if (!form.name.trim()) { setFormError("Name is required."); return; }
+    if (!form.email.trim()) { setFormError("Email is required."); return; }
+    setSaving(true);
+    try {
+      const created = await CustomerService.create(form);
+      toast({ title: "Customer created successfully" });
+      navigate(`/customers/${created.id}`);
+    } catch (e: any) {
+      setFormError(e?.response?.data?.message || "Create failed. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/customers")}
+          className="gap-1"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">New Customer</h1>
+          <p className="text-muted-foreground text-sm">Add a new customer to the platform</p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Customer Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {formError && (
+              <div className="flex items-center gap-2 p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded-md">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {formError}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Acme Hotels Ltd."
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="contact@acme.com"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="+33 1 23 45 67 89"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                placeholder="123 Main St, Paris"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/customers")}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white gap-2">
+                {saving ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Creating…</>
+                ) : (
+                  <><Plus className="h-4 w-4" />Create Customer</>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

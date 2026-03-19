@@ -137,7 +137,7 @@ export default function Customers() {
           </h1>
           <p className="text-muted-foreground">Manage all customers, their properties and users</p>
         </div>
-        <Button onClick={openCreate} className="text-white bg-blue-700 hover:bg-blue-800">
+        <Button onClick={() => navigate("/customers/new")} className="text-white bg-blue-700 hover:bg-blue-800">
           <Plus className="h-4 w-4 mr-2" />
           Add Customer
         </Button>

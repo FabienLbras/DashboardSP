@@ -488,7 +488,7 @@ export default function Transactions() {
               )}
             </div>
           ) : (
-            <div className="max-h-[600px] overflow-y-auto rounded-md border">
+            <div className="max-h-[600px] overflow-y-auto overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>

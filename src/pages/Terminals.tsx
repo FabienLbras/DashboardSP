@@ -82,7 +82,7 @@ export default function Terminals() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -175,6 +175,7 @@ export default function Terminals() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -205,6 +206,7 @@ export default function Terminals() {
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

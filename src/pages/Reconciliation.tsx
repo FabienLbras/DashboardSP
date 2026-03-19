@@ -254,7 +254,7 @@ export default function Reconciliation() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="hover:shadow-lg transition-all duration-200 hover:-translate-y-1 border-l-4 border-l-green-500">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -391,7 +391,7 @@ export default function Reconciliation() {
           <CardDescription>{filtered.length} {t("recordsFound")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="max-h-[600px] overflow-y-auto rounded-md border">
+          <div className="max-h-[600px] overflow-y-auto overflow-x-auto rounded-md border">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>

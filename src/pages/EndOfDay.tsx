@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -35,7 +35,7 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
-import { mockEndOfDay } from "../data/mockData";
+import { EodService, type EodReport } from "../services/eodService";
 
 export default function EndOfDay() {
   const { t } = useLanguage();
@@ -47,16 +47,25 @@ export default function EndOfDay() {
   const [dateFilter, setDateFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
+  const [reports, setReports] = useState<EodReport[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    EodService.list()
+      .then((res) => setReports(res.items))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   // Detect missing EOD days in the existing data range
   const missingDays = useMemo(() => {
-    if (mockEndOfDay.length < 2) return [];
-    const sorted = [...mockEndOfDay].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    if (reports.length < 2) return [];
+    const sorted = [...reports].sort(
+      (a, b) => new Date(a.report_date).getTime() - new Date(b.report_date).getTime()
     );
-    const dateSet = new Set(sorted.map((e) => e.date));
-    const first = new Date(sorted[0].date);
-    const last = new Date(sorted[sorted.length - 1].date);
+    const dateSet = new Set(sorted.map((e) => e.report_date));
+    const first = new Date(sorted[0].report_date);
+    const last = new Date(sorted[sorted.length - 1].report_date);
     const missing: string[] = [];
     const cur = new Date(first);
     cur.setDate(cur.getDate() + 1);
@@ -66,20 +75,21 @@ export default function EndOfDay() {
       cur.setDate(cur.getDate() + 1);
     }
     return missing;
-  }, []);
+  }, [reports]);
 
   const visibleAlerts = missingDays.filter((d) => !dismissedAlerts.includes(d));
 
-  const filtered = mockEndOfDay.filter((eod) => {
+  const filtered = reports.filter((eod) => {
     const matchesSearch =
-      eod.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      eod.date.includes(searchTerm);
+      String(eod.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      eod.report_date.includes(searchTerm) ||
+      (eod.terminal_name || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     let matchesDate = true;
     if (dateFilter !== "all") {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const eodDate = new Date(eod.date);
+      const eodDate = new Date(eod.report_date);
       if (dateFilter === "today") {
         matchesDate = eodDate >= today;
       } else if (dateFilter === "yesterday") {
@@ -99,9 +109,9 @@ export default function EndOfDay() {
 
     let matchesStatus = true;
     if (statusFilter === "high_failure") {
-      matchesStatus = eod.failedTransactions / eod.totalTransactions > 0.07;
+      matchesStatus = eod.total_transactions > 0 && eod.failed_transactions / eod.total_transactions > 0.07;
     } else if (statusFilter === "low_failure") {
-      matchesStatus = eod.failedTransactions / eod.totalTransactions <= 0.07;
+      matchesStatus = eod.total_transactions === 0 || eod.failed_transactions / eod.total_transactions <= 0.07;
     }
 
     return matchesSearch && matchesDate && matchesStatus;
@@ -109,16 +119,12 @@ export default function EndOfDay() {
 
   // Sort by date descending
   const sorted = [...filtered].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    (a, b) => new Date(b.report_date).getTime() - new Date(a.report_date).getTime()
   );
 
-  const getDayOverDay = (
-    current: number,
-    index: number,
-    field: keyof typeof mockEndOfDay[0]
-  ) => {
-    const allSorted = [...mockEndOfDay].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  const getDayOverDay = (current: number, index: number, field: keyof EodReport) => {
+    const allSorted = [...reports].sort(
+      (a, b) => new Date(b.report_date).getTime() - new Date(a.report_date).getTime()
     );
     const currentIdx = allSorted.findIndex((e) => e.id === sorted[index].id);
     const prev = allSorted[currentIdx + 1];
@@ -149,27 +155,28 @@ export default function EndOfDay() {
   };
 
   // Summary of filtered records
-  const totalTx = filtered.reduce((s, e) => s + e.totalTransactions, 0);
-  const totalSuccess = filtered.reduce((s, e) => s + e.successTransactions, 0);
-  const totalFailed = filtered.reduce((s, e) => s + e.failedTransactions, 0);
-  const totalRevenue = filtered.reduce((s, e) => s + e.totalAmount, 0);
+  const totalTx = filtered.reduce((s, e) => s + (e.total_transactions || 0), 0);
+  const totalSuccess = filtered.reduce((s, e) => s + (e.successful_transactions || 0), 0);
+  const totalFailed = filtered.reduce((s, e) => s + (e.failed_transactions || 0), 0);
+  const totalRevenue = filtered.reduce((s, e) => s + parseFloat(String(e.total_amount || 0)), 0);
   const avgTx =
     filtered.length > 0
-      ? filtered.reduce((s, e) => s + e.averageTransaction, 0) / filtered.length
+      ? filtered.reduce((s, e) => s + parseFloat(String(e.avg_amount || 0)), 0) / filtered.length
       : 0;
 
   const handleExportCSV = () => {
     const headers = [
-      "EOD ID", "Date", "Total Tx", "Success", "Failed", "Total Amount", "Avg Tx",
+      "ID", "Date", "Terminal", "Total Tx", "Success", "Failed", "Total Amount", "Avg Tx",
     ];
     const rows = sorted.map((e) => [
       e.id,
-      e.date,
-      e.totalTransactions,
-      e.successTransactions,
-      e.failedTransactions,
-      e.totalAmount.toFixed(2),
-      e.averageTransaction.toFixed(2),
+      e.report_date,
+      e.terminal_name || "",
+      e.total_transactions,
+      e.successful_transactions,
+      e.failed_transactions,
+      parseFloat(String(e.total_amount)).toFixed(2),
+      parseFloat(String(e.avg_amount)).toFixed(2),
     ]);
     const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -369,8 +376,9 @@ export default function EndOfDay() {
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableHead>{t("eodId")}</TableHead>
+                  <TableHead>ID</TableHead>
                   <TableHead>{t("date")}</TableHead>
+                  <TableHead>Terminal</TableHead>
                   <TableHead>{t("totalTx")}</TableHead>
                   <TableHead>{t("fulfilled")}</TableHead>
                   <TableHead>{t("failed")}</TableHead>
@@ -380,43 +388,56 @@ export default function EndOfDay() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.length === 0 ? (
+                {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                      Loading…
+                    </TableCell>
+                  </TableRow>
+                ) : sorted.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                       {t("noReportsMatch")}
                     </TableCell>
                   </TableRow>
                 ) : (
                   sorted.map((eod, idx) => {
-                    const revenueChange = getDayOverDay(eod.totalAmount, idx, "totalAmount");
-                    const txChange = getDayOverDay(eod.totalTransactions, idx, "totalTransactions");
-                    const failureRate = Math.round((eod.failedTransactions / eod.totalTransactions) * 100);
+                    const totalAmt = parseFloat(String(eod.total_amount || 0));
+                    const avgAmt = parseFloat(String(eod.avg_amount || 0));
+                    const revenueChange = getDayOverDay(totalAmt, idx, "total_amount");
+                    const txChange = getDayOverDay(eod.total_transactions, idx, "total_transactions");
+                    const failureRate = eod.total_transactions > 0
+                      ? Math.round((eod.failed_transactions / eod.total_transactions) * 100)
+                      : 0;
 
                     return (
                       <TableRow key={eod.id}>
-                        <TableCell className="font-medium">{eod.id}</TableCell>
+                        <TableCell className="font-medium">EOD-{eod.id}</TableCell>
                         <TableCell>
-                          {new Date(eod.date).toLocaleDateString("en-GB", {
+                          {new Date(eod.report_date + "T12:00:00").toLocaleDateString("en-GB", {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",
                           })}
                         </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {eod.terminal_name || "—"}
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {eod.totalTransactions.toLocaleString()}
+                            {eod.total_transactions.toLocaleString()}
                             <DeltaBadge pct={txChange} />
                           </div>
                         </TableCell>
                         <TableCell>
                           <span className="text-green-600 font-medium">
-                            {eod.successTransactions.toLocaleString()}
+                            {eod.successful_transactions.toLocaleString()}
                           </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className="text-red-600 font-medium">
-                              {eod.failedTransactions}
+                              {eod.failed_transactions}
                             </span>
                             <Badge
                               className={
@@ -429,10 +450,10 @@ export default function EndOfDay() {
                             </Badge>
                           </div>
                         </TableCell>
-                        <TableCell>${eod.averageTransaction.toFixed(2)}</TableCell>
+                        <TableCell>${avgAmt.toFixed(2)}</TableCell>
                         <TableCell className="font-semibold">
                           <div className="flex items-center gap-2">
-                            ${eod.totalAmount.toLocaleString()}
+                            ${totalAmt.toLocaleString()}
                             <DeltaBadge pct={revenueChange} />
                           </div>
                         </TableCell>

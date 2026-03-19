@@ -39,12 +39,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
-import { mockInvoices } from "../data/mockData";
 import { InvoiceCreateDialog } from "../components/invoices/InvoiceCreateDialog";
 import { InvoiceDetailsDialog } from "../components/invoices/InvoiceDetailsDialog";
 import { ReminderDialog } from "../components/invoices/ReminderDialog";
 import { useToast } from "../hooks/useToast";
 import { useLanguage } from "../context/LanguageContext";
+
+const invoices: any[] = [];
 
 export default function Invoices() {
   const { toast } = useToast();
@@ -56,7 +57,7 @@ export default function Invoices() {
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
-  const filteredInvoices = mockInvoices.filter(invoice => {
+  const filteredInvoices = invoices.filter(invoice => {
     const matchesSearch = invoice.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          invoice.customer.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;

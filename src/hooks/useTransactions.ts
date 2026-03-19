@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TransactionService } from '../services/transactionService';
-import { mockTransactions } from '../data/mockData';
 import type { Transaction, TransactionFilters } from '../types/transaction';
 
 interface UseTransactionsOptions {
   initialFilters?: TransactionFilters;
-  fallbackToMockData?: boolean;
 }
 
 interface UseTransactionsReturn {
@@ -19,7 +17,7 @@ interface UseTransactionsReturn {
 }
 
 export function useTransactions(options: UseTransactionsOptions = {}): UseTransactionsReturn {
-  const { initialFilters = {}, fallbackToMockData = true } = options;
+  const { initialFilters = {} } = options;
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,7 +40,7 @@ export function useTransactions(options: UseTransactionsOptions = {}): UseTransa
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filters, fallbackToMockData]);
+  }, [filters]);
 
   const refetch = useCallback(() => {
     fetchTransactions();

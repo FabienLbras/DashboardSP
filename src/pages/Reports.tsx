@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
@@ -22,11 +22,33 @@ import {
   Activity, DollarSign, CheckCircle, XCircle, ChevronUp, ChevronDown,
   ChevronsUpDown, Search,
 } from "lucide-react";
-import { mockEndOfDay, mockTransactions } from "../data/mockData";
+import axios from "axios";
+import { AuthService } from "../services/authService";
+import { EodService, type EodReport } from "../services/eodService";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const api = axios.create({ baseURL: API_BASE_URL });
+api.interceptors.request.use((config) => {
+  const token = AuthService.getAccessToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Tab = "transactions" | "eod" | "statistics";
 type SortDir = "asc" | "desc" | null;
+
+interface TxRow {
+  id: number;
+  reference: string | null;
+  amount: number;
+  currency: string;
+  state: string;
+  payment_method: string | null;
+  customer_name: string | null;
+  description: string | null;
+  created_at: string;
+}
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -60,21 +82,44 @@ export default function Reports() {
   const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>("transactions");
 
+  // ── Data from API ────────────────────────────────────────────────────────────
+  const [allTx, setAllTx] = useState<TxRow[]>([]);
+  const [allEod, setAllEod] = useState<EodReport[]>([]);
+
+  useEffect(() => {
+    api.get("/payment/transactions").then((r) => setAllTx(r.data.items || [])).catch(console.error);
+    EodService.list().then((r) => setAllEod(r.items)).catch(console.error);
+  }, []);
+
   // ── Date range ───────────────────────────────────────────────────────────────
-  const [fromDate, setFromDate] = useState("2024-01-01");
-  const [toDate, setToDate] = useState("2024-01-15");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  // Compute default range from actual data
+  const defaultRange = useMemo(() => {
+    if (allTx.length === 0 && allEod.length === 0) return { from: "", to: "" };
+    const dates = [
+      ...allTx.map((t) => t.created_at.slice(0, 10)),
+      ...allEod.map((e) => e.report_date),
+    ];
+    dates.sort();
+    return { from: dates[0], to: dates[dates.length - 1] };
+  }, [allTx, allEod]);
+
+  const effectiveFrom = fromDate || defaultRange.from;
+  const effectiveTo = toDate || defaultRange.to;
 
   // ── Transaction filters ──────────────────────────────────────────────────────
   const [txSearch, setTxSearch] = useState("");
   const [txStatus, setTxStatus] = useState("all");
   const [txMethod, setTxMethod] = useState("all");
-  const [txSort, setTxSort] = useState<{ col: string; dir: SortDir }>({ col: "date", dir: "desc" });
+  const [txSort, setTxSort] = useState<{ col: string; dir: SortDir }>({ col: "created_at", dir: "desc" });
   const [txChartType, setTxChartType] = useState<"area" | "bar" | "line">("area");
 
   // ── EOD filters ──────────────────────────────────────────────────────────────
   const [eodSearch, setEodSearch] = useState("");
-  const [eodSort, setEodSort] = useState<{ col: string; dir: SortDir }>({ col: "date", dir: "desc" });
-  const [eodChartMetric, setEodChartMetric] = useState<"totalAmount" | "totalTransactions" | "failedTransactions">("totalAmount");
+  const [eodSort, setEodSort] = useState<{ col: string; dir: SortDir }>({ col: "report_date", dir: "desc" });
+  const [eodChartMetric, setEodChartMetric] = useState<"total_amount" | "total_transactions" | "failed_transactions">("total_amount");
   const [eodChartType, setEodChartType] = useState<"area" | "bar" | "line">("area");
 
   // ── Generic sort toggle ───────────────────────────────────────────────────────
@@ -90,16 +135,20 @@ export default function Reports() {
 
   // ─── Filtered & sorted transactions ─────────────────────────────────────────
   const filteredTx = useMemo(() => {
-    const from = fromDate ? new Date(fromDate).getTime() : 0;
-    const to = toDate ? new Date(toDate + "T23:59:59Z").getTime() : Infinity;
-    let rows = mockTransactions.filter((t) => {
-      const d = new Date(t.date).getTime();
+    const from = effectiveFrom ? new Date(effectiveFrom).getTime() : 0;
+    const to = effectiveTo ? new Date(effectiveTo + "T23:59:59Z").getTime() : Infinity;
+    let rows = allTx.filter((tx) => {
+      const d = new Date(tx.created_at).getTime();
       if (d < from || d > to) return false;
-      if (txStatus !== "all" && t.status !== txStatus) return false;
-      if (txMethod !== "all" && t.paymentMethod !== txMethod) return false;
+      if (txStatus !== "all" && tx.state !== txStatus) return false;
+      if (txMethod !== "all" && tx.payment_method !== txMethod) return false;
       if (txSearch) {
         const q = txSearch.toLowerCase();
-        if (!t.id.toLowerCase().includes(q) && !t.customer.toLowerCase().includes(q) && !t.location.toLowerCase().includes(q)) return false;
+        if (
+          !String(tx.id).includes(q) &&
+          !(tx.reference || "").toLowerCase().includes(q) &&
+          !(tx.customer_name || "").toLowerCase().includes(q)
+        ) return false;
       }
       return true;
     });
@@ -107,7 +156,7 @@ export default function Reports() {
       rows = [...rows].sort((a, b) => {
         let av: number | string, bv: number | string;
         if (txSort.col === "amount") { av = a.amount; bv = b.amount; }
-        else if (txSort.col === "date") { av = new Date(a.date).getTime(); bv = new Date(b.date).getTime(); }
+        else if (txSort.col === "created_at") { av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime(); }
         else { av = (a as any)[txSort.col] || ""; bv = (b as any)[txSort.col] || ""; }
         if (av < bv) return txSort.dir === "asc" ? -1 : 1;
         if (av > bv) return txSort.dir === "asc" ? 1 : -1;
@@ -115,17 +164,17 @@ export default function Reports() {
       });
     }
     return rows;
-  }, [fromDate, toDate, txStatus, txMethod, txSearch, txSort]);
+  }, [allTx, effectiveFrom, effectiveTo, txStatus, txMethod, txSearch, txSort]);
 
   // ─── Transaction chart data (daily aggregation) ───────────────────────────
   const txChartData = useMemo(() => {
     const map: Record<string, { date: string; revenue: number; count: number; failed: number }> = {};
-    filteredTx.forEach((t) => {
-      const day = t.date.slice(0, 10);
+    filteredTx.forEach((tx) => {
+      const day = tx.created_at.slice(0, 10);
       if (!map[day]) map[day] = { date: day, revenue: 0, count: 0, failed: 0 };
-      map[day].revenue += t.amount;
+      map[day].revenue += parseFloat(String(tx.amount));
       map[day].count += 1;
-      if (t.status === "failed") map[day].failed += 1;
+      if (tx.state === "FAILED" || tx.state === "failed") map[day].failed += 1;
     });
     return Object.values(map)
       .sort((a, b) => a.date.localeCompare(b.date))
@@ -134,34 +183,35 @@ export default function Reports() {
 
   // KPIs for transactions
   const txKpis = useMemo(() => {
-    const total = filteredTx.reduce((s, t) => s + t.amount, 0);
-    const completed = filteredTx.filter((t) => t.status === "completed").length;
-    const failed = filteredTx.filter((t) => t.status === "failed").length;
-    const refunded = filteredTx.filter((t) => t.status === "refunded").length;
-    return { total, completed, failed, refunded, count: filteredTx.length, avg: filteredTx.length ? total / filteredTx.length : 0 };
+    const total = filteredTx.reduce((s, tx) => s + parseFloat(String(tx.amount)), 0);
+    const fulfilled = filteredTx.filter((tx) => tx.state === "FULFILL").length;
+    const failed = filteredTx.filter((tx) => tx.state === "FAILED" || tx.state === "failed").length;
+    const refunded = filteredTx.filter((tx) => tx.state === "refunded").length;
+    return { total, fulfilled, failed, refunded, count: filteredTx.length, avg: filteredTx.length ? total / filteredTx.length : 0 };
   }, [filteredTx]);
 
   // Payment method breakdown
   const txMethodBreakdown = useMemo(() => {
     const map: Record<string, { name: string; count: number; amount: number }> = {};
-    filteredTx.forEach((t) => {
-      if (!map[t.paymentMethod]) map[t.paymentMethod] = { name: t.paymentMethod, count: 0, amount: 0 };
-      map[t.paymentMethod].count += 1;
-      map[t.paymentMethod].amount += t.amount;
+    filteredTx.forEach((tx) => {
+      const method = tx.payment_method || "Unknown";
+      if (!map[method]) map[method] = { name: method, count: 0, amount: 0 };
+      map[method].count += 1;
+      map[method].amount += parseFloat(String(tx.amount));
     });
     return Object.values(map).sort((a, b) => b.amount - a.amount);
   }, [filteredTx]);
 
   // ─── Filtered & sorted EOD ───────────────────────────────────────────────────
   const filteredEod = useMemo(() => {
-    const from = fromDate ? new Date(fromDate).getTime() : 0;
-    const to = toDate ? new Date(toDate + "T23:59:59Z").getTime() : Infinity;
-    let rows = mockEndOfDay.filter((e) => {
-      const d = new Date(e.date).getTime();
+    const from = effectiveFrom ? new Date(effectiveFrom).getTime() : 0;
+    const to = effectiveTo ? new Date(effectiveTo + "T23:59:59Z").getTime() : Infinity;
+    let rows = allEod.filter((e) => {
+      const d = new Date(e.report_date).getTime();
       if (d < from || d > to) return false;
       if (eodSearch) {
         const q = eodSearch.toLowerCase();
-        if (!e.id.toLowerCase().includes(q) && !e.date.includes(q)) return false;
+        if (!String(e.id).includes(q) && !e.report_date.includes(q) && !(e.terminal_name || "").toLowerCase().includes(q)) return false;
       }
       return true;
     });
@@ -175,50 +225,51 @@ export default function Reports() {
       });
     }
     return rows;
-  }, [fromDate, toDate, eodSearch, eodSort]);
+  }, [allEod, effectiveFrom, effectiveTo, eodSearch, eodSort]);
 
   // EOD chart data
   const eodChartData = useMemo(() =>
     [...filteredEod]
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort((a, b) => a.report_date.localeCompare(b.report_date))
       .map((e) => ({
-        date: fmtDate(e.date),
-        totalAmount: e.totalAmount,
-        totalTransactions: e.totalTransactions,
-        failedTransactions: e.failedTransactions,
+        date: fmtDate(e.report_date),
+        total_amount: parseFloat(String(e.total_amount || 0)),
+        total_transactions: e.total_transactions || 0,
+        failed_transactions: e.failed_transactions || 0,
       })),
     [filteredEod]
   );
 
   // EOD KPIs
   const eodKpis = useMemo(() => {
-    const totalRev = filteredEod.reduce((s, e) => s + e.totalAmount, 0);
-    const totalTx = filteredEod.reduce((s, e) => s + e.totalTransactions, 0);
-    const totalFailed = filteredEod.reduce((s, e) => s + e.failedTransactions, 0);
+    const totalRev = filteredEod.reduce((s, e) => s + parseFloat(String(e.total_amount || 0)), 0);
+    const totalTx = filteredEod.reduce((s, e) => s + (e.total_transactions || 0), 0);
+    const totalFailed = filteredEod.reduce((s, e) => s + (e.failed_transactions || 0), 0);
     const avgRev = filteredEod.length ? totalRev / filteredEod.length : 0;
     return { totalRev, totalTx, totalFailed, avgRev, days: filteredEod.length };
   }, [filteredEod]);
 
   // EOD day-over-day
   const eodWithDelta = useMemo(() => {
-    const sorted = [...filteredEod].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted = [...filteredEod].sort((a, b) => a.report_date.localeCompare(b.report_date));
     return sorted.map((e, i) => {
       const prev = sorted[i - 1];
-      const delta = prev ? ((e.totalAmount - prev.totalAmount) / prev.totalAmount) * 100 : null;
-      return { ...e, delta };
+      const curAmt = parseFloat(String(e.total_amount || 0));
+      const prevAmt = prev ? parseFloat(String(prev.total_amount || 0)) : 0;
+      const delta = prev && prevAmt > 0 ? ((curAmt - prevAmt) / prevAmt) * 100 : null;
+      return { ...e, delta, totalAmountNum: curAmt, avgAmountNum: parseFloat(String(e.avg_amount || 0)) };
     }).reverse();
   }, [filteredEod]);
 
   // ─── Statistics ───────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    // Day-of-week analysis from all EOD data
     const dowRevenue: number[] = Array(7).fill(0);
     const dowCount: number[] = Array(7).fill(0);
     const dowTx: number[] = Array(7).fill(0);
-    mockEndOfDay.forEach((e) => {
-      const dow = new Date(e.date).getDay();
-      dowRevenue[dow] += e.totalAmount;
-      dowTx[dow] += e.totalTransactions;
+    allEod.forEach((e) => {
+      const dow = new Date(e.report_date + "T12:00:00").getDay();
+      dowRevenue[dow] += parseFloat(String(e.total_amount || 0));
+      dowTx[dow] += e.total_transactions || 0;
       dowCount[dow] += 1;
     });
     const avgRevByDow = dowRevenue.map((r, i) => ({
@@ -228,35 +279,31 @@ export default function Reports() {
       days: dowCount[i],
     }));
 
-    // Best / worst day
     const byRevSorted = [...avgRevByDow].sort((a, b) => b.avgRevenue - a.avgRevenue);
     const best = byRevSorted[0];
     const worst = byRevSorted[byRevSorted.length - 1];
 
-    // Weekday vs weekend
     const weekdayRev = [1, 2, 3, 4, 5].reduce((s, d) => s + (avgRevByDow[d]?.avgRevenue || 0), 0) / 5;
     const weekendRev = [0, 6].reduce((s, d) => s + (avgRevByDow[d]?.avgRevenue || 0), 0) / 2;
 
-    // Failure rate by day
     const dowFailed: number[] = Array(7).fill(0);
     const dowSuccess: number[] = Array(7).fill(0);
-    mockEndOfDay.forEach((e) => {
-      const dow = new Date(e.date).getDay();
-      dowFailed[dow] += e.failedTransactions;
-      dowSuccess[dow] += e.successTransactions;
+    allEod.forEach((e) => {
+      const dow = new Date(e.report_date + "T12:00:00").getDay();
+      dowFailed[dow] += e.failed_transactions || 0;
+      dowSuccess[dow] += e.successful_transactions || 0;
     });
     const failRateByDow = dowFailed.map((f, i) => ({
       day: DAY_SHORT[i],
       failRate: dowSuccess[i] + f > 0 ? parseFloat(((f / (dowSuccess[i] + f)) * 100).toFixed(1)) : 0,
     }));
 
-    // Monthly trend (group by month)
     const monthMap: Record<string, { month: string; revenue: number; transactions: number; count: number }> = {};
-    mockEndOfDay.forEach((e) => {
-      const m = e.date.slice(0, 7);
+    allEod.forEach((e) => {
+      const m = e.report_date.slice(0, 7);
       if (!monthMap[m]) monthMap[m] = { month: m, revenue: 0, transactions: 0, count: 0 };
-      monthMap[m].revenue += e.totalAmount;
-      monthMap[m].transactions += e.totalTransactions;
+      monthMap[m].revenue += parseFloat(String(e.total_amount || 0));
+      monthMap[m].transactions += e.total_transactions || 0;
       monthMap[m].count += 1;
     });
     const monthlyTrend = Object.values(monthMap).sort((a, b) => a.month.localeCompare(b.month)).map((m) => ({
@@ -266,17 +313,16 @@ export default function Reports() {
     }));
 
     return { avgRevByDow, best, worst, weekdayRev, weekendRev, failRateByDow, monthlyTrend };
-  }, []);
+  }, [allEod]);
 
   // ── Custom Tooltip ────────────────────────────────────────────────────────────
   function CustomTooltip({
-    active, payload, label, yFormatter, xLabel,
+    active, payload, label, yFormatter,
   }: {
     active?: boolean;
     payload?: any[];
     label?: string;
     yFormatter?: (v: number) => string;
-    xLabel?: string;
   }) {
     if (!active || !payload?.length) return null;
     return (
@@ -287,9 +333,7 @@ export default function Reports() {
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
             <span className="text-gray-500 dark:text-gray-400">{p.name}:</span>
             <span className="font-medium text-gray-800 dark:text-gray-100">
-              {yFormatter && (p.name.includes("Revenue") || p.name.includes("$"))
-                ? yFormatter(p.value)
-                : p.value?.toLocaleString()}
+              {yFormatter ? yFormatter(p.value) : p.value?.toLocaleString()}
             </span>
           </div>
         ))}
@@ -353,13 +397,19 @@ export default function Reports() {
 
   // ── CSV exports ───────────────────────────────────────────────────────────────
   function exportTxCsv() {
-    const headers = ["ID", "Date", "Customer", "Location", "Payment Method", "Status", "Terminal", "Amount"];
-    const rows = filteredTx.map((t) => [t.id, t.date, t.customer, t.location, t.paymentMethod, t.status, t.terminal, t.amount.toFixed(2)]);
+    const headers = ["ID", "Date", "Customer", "Payment Method", "Status", "Amount"];
+    const rows = filteredTx.map((tx) => [
+      String(tx.id), tx.created_at, tx.customer_name || "", tx.payment_method || "", tx.state, String(tx.amount),
+    ]);
     csvDownload("transactions_report.csv", [headers, ...rows]);
   }
   function exportEodCsv() {
-    const headers = ["ID", "Date", "Total Tx", "Success", "Failed", "Total Amount", "Avg Tx"];
-    const rows = filteredEod.map((e) => [e.id, e.date, String(e.totalTransactions), String(e.successTransactions), String(e.failedTransactions), e.totalAmount.toFixed(2), e.averageTransaction.toFixed(2)]);
+    const headers = ["ID", "Date", "Terminal", "Total Tx", "Success", "Failed", "Total Amount", "Avg Tx"];
+    const rows = filteredEod.map((e) => [
+      String(e.id), e.report_date, e.terminal_name || "", String(e.total_transactions),
+      String(e.successful_transactions), String(e.failed_transactions),
+      parseFloat(String(e.total_amount)).toFixed(2), parseFloat(String(e.avg_amount)).toFixed(2),
+    ]);
     csvDownload("eod_report.csv", [headers, ...rows]);
   }
 
@@ -378,6 +428,7 @@ export default function Reports() {
   );
 
   // ── Date range bar ─────────────────────────────────────────────────────────────
+  const now = new Date();
   const dateBar = (
     <Card className="mb-6">
       <CardContent className="py-4">
@@ -391,10 +442,21 @@ export default function Reports() {
             <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
           </div>
           {[
-            { label: "Last 7d",  from: "2024-01-09", to: "2024-01-15" },
-            { label: "Last 14d", from: "2024-01-01", to: "2024-01-15" },
-            { label: "Dec 2023", from: "2023-12-01", to: "2023-12-31" },
-            { label: "All",      from: "2023-12-01", to: "2024-01-15" },
+            {
+              label: "Last 7d",
+              from: new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10),
+              to: now.toISOString().slice(0, 10),
+            },
+            {
+              label: "Last 30d",
+              from: new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10),
+              to: now.toISOString().slice(0, 10),
+            },
+            {
+              label: "All",
+              from: "",
+              to: "",
+            },
           ].map((p) => (
             <Button key={p.label} variant="outline" size="sm" onClick={() => { setFromDate(p.from); setToDate(p.to); }}>
               {p.label}
@@ -404,6 +466,21 @@ export default function Reports() {
       </CardContent>
     </Card>
   );
+
+  // ── Status badge helper ───────────────────────────────────────────────────────
+  function statusBadge(state: string) {
+    const s = state?.toUpperCase();
+    if (s === "FULFILL") return <Badge className="bg-green-100 text-green-800">{state}</Badge>;
+    if (s === "FAILED") return <Badge className="bg-red-100 text-red-800">{state}</Badge>;
+    if (s === "REFUNDED") return <Badge className="bg-orange-100 text-orange-800">{state}</Badge>;
+    return <Badge className="bg-yellow-100 text-yellow-800">{state}</Badge>;
+  }
+
+  // ── Available payment methods from data ───────────────────────────────────────
+  const paymentMethods = useMemo(() => {
+    const set = new Set(allTx.map((tx) => tx.payment_method).filter(Boolean));
+    return Array.from(set) as string[];
+  }, [allTx]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -437,7 +514,7 @@ export default function Reports() {
               { label: t("totalRevenue"), value: fmt(txKpis.total), icon: <DollarSign className="h-4 w-4 text-blue-500" /> },
               { label: t("transactions"), value: txKpis.count, icon: <Activity className="h-4 w-4 text-indigo-500" /> },
               { label: t("avgAmount"), value: fmt(txKpis.avg), icon: <TrendingUp className="h-4 w-4 text-green-500" /> },
-              { label: t("completed"), value: txKpis.completed, icon: <CheckCircle className="h-4 w-4 text-green-500" />, color: "text-green-600" },
+              { label: t("fulfilled"), value: txKpis.fulfilled, icon: <CheckCircle className="h-4 w-4 text-green-500" />, color: "text-green-600" },
               { label: t("failed"), value: txKpis.failed, icon: <XCircle className="h-4 w-4 text-red-500" />, color: "text-red-600" },
               { label: t("refunded"), value: txKpis.refunded, icon: <TrendingDown className="h-4 w-4 text-orange-500" />, color: "text-orange-600" },
             ].map((k) => (
@@ -458,9 +535,9 @@ export default function Reports() {
                 <CardDescription>{t("dailyRevenueCount")}</CardDescription>
               </div>
               <div className="flex gap-2">
-                {(["area", "bar", "line"] as const).map((t) => (
-                  <Button key={t} size="sm" variant={txChartType === t ? "default" : "outline"} onClick={() => setTxChartType(t)} className={txChartType === t ? "bg-blue-700 text-white" : ""}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                {(["area", "bar", "line"] as const).map((ct) => (
+                  <Button key={ct} size="sm" variant={txChartType === ct ? "default" : "outline"} onClick={() => setTxChartType(ct)} className={txChartType === ct ? "bg-blue-700 text-white" : ""}>
+                    {ct.charAt(0).toUpperCase() + ct.slice(1)}
                   </Button>
                 ))}
               </div>
@@ -552,16 +629,17 @@ export default function Reports() {
                   <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("allStatuses")}</SelectItem>
-                    <SelectItem value="completed">{t("completed")}</SelectItem>
-                    <SelectItem value="failed">{t("failed")}</SelectItem>
-                    <SelectItem value="refunded">{t("refunded")}</SelectItem>
+                    <SelectItem value="FULFILL">FULFILL</SelectItem>
+                    <SelectItem value="FAILED">FAILED</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="refunded">Refunded</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={txMethod} onValueChange={setTxMethod}>
                   <SelectTrigger className="w-44"><SelectValue placeholder="Method" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("allMethods")}</SelectItem>
-                    {["Visa", "Mastercard", "American Express", "Apple Pay", "Google Pay"].map((m) => (
+                    {paymentMethods.map((m) => (
                       <SelectItem key={m} value={m}>{m}</SelectItem>
                     ))}
                   </SelectContent>
@@ -573,11 +651,10 @@ export default function Reports() {
                     <TableRow>
                       {[
                         { col: "id", label: "ID" },
-                        { col: "date", label: t("date") },
-                        { col: "customer", label: t("customer") },
-                        { col: "location", label: t("location") },
-                        { col: "paymentMethod", label: t("paymentMethod") },
-                        { col: "status", label: t("status") },
+                        { col: "created_at", label: t("date") },
+                        { col: "customer_name", label: t("customer") },
+                        { col: "payment_method", label: t("paymentMethod") },
+                        { col: "state", label: t("status") },
                         { col: "amount", label: t("amount") },
                       ].map(({ col, label }) => (
                         <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" onClick={() => toggleSort(col, txSort, setTxSort)}>
@@ -588,22 +665,15 @@ export default function Reports() {
                   </TableHeader>
                   <TableBody>
                     {filteredTx.length === 0 ? (
-                      <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">{t("noTransactionsMatchFilters")}</TableCell></TableRow>
-                    ) : filteredTx.map((t) => (
-                      <TableRow key={t.id}>
-                        <TableCell className="font-mono text-xs">{t.id}</TableCell>
-                        <TableCell className="text-sm">{new Date(t.date).toLocaleString()}</TableCell>
-                        <TableCell>{t.customer}</TableCell>
-                        <TableCell className="text-muted-foreground">{t.location}</TableCell>
-                        <TableCell>{t.paymentMethod}</TableCell>
-                        <TableCell>
-                          <Badge className={
-                            t.status === "completed" ? "bg-green-100 text-green-800" :
-                            t.status === "failed" ? "bg-red-100 text-red-800" :
-                            "bg-orange-100 text-orange-800"
-                          }>{t.status}</Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{fmt(t.amount)}</TableCell>
+                      <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-10">{t("noTransactionsMatchFilters")}</TableCell></TableRow>
+                    ) : filteredTx.map((tx) => (
+                      <TableRow key={tx.id}>
+                        <TableCell className="font-mono text-xs">{tx.id}</TableCell>
+                        <TableCell className="text-sm">{new Date(tx.created_at).toLocaleString()}</TableCell>
+                        <TableCell>{tx.customer_name || "—"}</TableCell>
+                        <TableCell>{tx.payment_method || "—"}</TableCell>
+                        <TableCell>{statusBadge(tx.state)}</TableCell>
+                        <TableCell className="font-medium">{fmt(parseFloat(String(tx.amount)))}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -648,14 +718,14 @@ export default function Reports() {
                 <Select value={eodChartMetric} onValueChange={(v) => setEodChartMetric(v as any)}>
                   <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="totalAmount">{t("revenue")}</SelectItem>
-                    <SelectItem value="totalTransactions">{t("transactions")}</SelectItem>
-                    <SelectItem value="failedTransactions">{t("failedTransactions")}</SelectItem>
+                    <SelectItem value="total_amount">{t("revenue")}</SelectItem>
+                    <SelectItem value="total_transactions">{t("transactions")}</SelectItem>
+                    <SelectItem value="failed_transactions">{t("failedTransactions")}</SelectItem>
                   </SelectContent>
                 </Select>
-                {(["area", "bar", "line"] as const).map((t) => (
-                  <Button key={t} size="sm" variant={eodChartType === t ? "default" : "outline"} onClick={() => setEodChartType(t)} className={eodChartType === t ? "bg-blue-700 text-white" : ""}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                {(["area", "bar", "line"] as const).map((ct) => (
+                  <Button key={ct} size="sm" variant={eodChartType === ct ? "default" : "outline"} onClick={() => setEodChartType(ct)} className={eodChartType === ct ? "bg-blue-700 text-white" : ""}>
+                    {ct.charAt(0).toUpperCase() + ct.slice(1)}
                   </Button>
                 ))}
               </div>
@@ -670,13 +740,13 @@ export default function Reports() {
                     eodChartData,
                     [{
                       key: eodChartMetric,
-                      color: eodChartMetric === "failedTransactions" ? "#ef4444" : "#3b82f6",
-                      label: eodChartMetric === "totalAmount" ? `${t("revenue")} ($)` : eodChartMetric === "totalTransactions" ? t("transactions") : t("failedTransactions"),
+                      color: eodChartMetric === "failed_transactions" ? "#ef4444" : "#3b82f6",
+                      label: eodChartMetric === "total_amount" ? `${t("revenue")} ($)` : eodChartMetric === "total_transactions" ? t("transactions") : t("failedTransactions"),
                     }],
                     "date",
-                    eodChartMetric === "totalAmount" ? (v) => `$${v.toLocaleString()}` : undefined,
+                    eodChartMetric === "total_amount" ? (v) => `$${v.toLocaleString()}` : undefined,
                     t("date"),
-                    eodChartMetric === "totalAmount" ? `${t("revenue")} ($)` : t("count"),
+                    eodChartMetric === "total_amount" ? `${t("revenue")} ($)` : t("count"),
                   )}
                 </ResponsiveContainer>
               )}
@@ -688,7 +758,7 @@ export default function Reports() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>{t("eodDetails")}</CardTitle>
-                <CardDescription>{filteredEod.length} records with day-over-day comparison</CardDescription>
+                <CardDescription>{filteredEod.length} records</CardDescription>
               </div>
               <Button onClick={exportEodCsv} variant="outline" size="sm" className="gap-2">
                 <Download className="h-4 w-4" />{t("exportCsv")}
@@ -707,12 +777,13 @@ export default function Reports() {
                     <TableRow>
                       {[
                         { col: "id", label: t("eodId") },
-                        { col: "date", label: t("date") },
-                        { col: "totalTransactions", label: t("totalTx") },
-                        { col: "successTransactions", label: t("success") },
-                        { col: "failedTransactions", label: t("failed") },
-                        { col: "totalAmount", label: t("revenue") },
-                        { col: "averageTransaction", label: t("avgTx") },
+                        { col: "report_date", label: t("date") },
+                        { col: "terminal_name", label: "Terminal" },
+                        { col: "total_transactions", label: t("totalTx") },
+                        { col: "successful_transactions", label: t("success") },
+                        { col: "failed_transactions", label: t("failed") },
+                        { col: "total_amount", label: t("revenue") },
+                        { col: "avg_amount", label: t("avgTx") },
                       ].map(({ col, label }) => (
                         <TableHead key={col} className="cursor-pointer select-none whitespace-nowrap" onClick={() => toggleSort(col, eodSort, setEodSort)}>
                           {label}<SortIcon col={col} sort={eodSort} />
@@ -723,25 +794,26 @@ export default function Reports() {
                   </TableHeader>
                   <TableBody>
                     {eodWithDelta.length === 0 ? (
-                      <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">{t("noRecordsMatch")}</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-10">{t("noRecordsMatch")}</TableCell></TableRow>
                     ) : eodWithDelta.map((e) => {
-                      const failRate = e.totalTransactions > 0 ? (e.failedTransactions / e.totalTransactions) * 100 : 0;
+                      const failRate = (e.total_transactions || 0) > 0 ? ((e.failed_transactions || 0) / (e.total_transactions || 1)) * 100 : 0;
                       return (
                         <TableRow key={e.id}>
-                          <TableCell className="font-mono text-xs">{e.id}</TableCell>
-                          <TableCell className="font-medium">{fmtDate(e.date)}</TableCell>
-                          <TableCell>{e.totalTransactions}</TableCell>
-                          <TableCell className="text-green-600">{e.successTransactions}</TableCell>
+                          <TableCell className="font-mono text-xs">EOD-{e.id}</TableCell>
+                          <TableCell className="font-medium">{fmtDate(e.report_date)}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{e.terminal_name || "—"}</TableCell>
+                          <TableCell>{e.total_transactions || 0}</TableCell>
+                          <TableCell className="text-green-600">{e.successful_transactions || 0}</TableCell>
                           <TableCell>
                             <span className="flex items-center gap-1">
-                              {e.failedTransactions}
+                              {e.failed_transactions || 0}
                               {failRate > 5 && (
                                 <Badge className="bg-red-100 text-red-700 text-xs px-1">{failRate.toFixed(1)}%</Badge>
                               )}
                             </span>
                           </TableCell>
-                          <TableCell className="font-medium">{fmt(e.totalAmount)}</TableCell>
-                          <TableCell>{fmt(e.averageTransaction)}</TableCell>
+                          <TableCell className="font-medium">{fmt(e.totalAmountNum)}</TableCell>
+                          <TableCell>{fmt(e.avgAmountNum)}</TableCell>
                           <TableCell>
                             {e.delta === null ? (
                               <span className="text-muted-foreground text-xs">—</span>
@@ -769,188 +841,182 @@ export default function Reports() {
       {/* ── STATISTICS TAB ───────────────────────────────────────────────────── */}
       {tab === "statistics" && (
         <div className="space-y-6">
-          {/* Insights cards */}
-          <div className="grid md:grid-cols-3 gap-4">
-            <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
-              <CardContent className="pt-4 pb-4">
-                <div className="text-xs text-green-700 font-medium uppercase mb-1">{t("bestPerformingDay")}</div>
-                <div className="text-2xl font-bold text-green-800">{DAYS[DAY_SHORT.indexOf(stats.best?.day)]}</div>
-                <div className="text-sm text-green-700 mt-0.5">Avg {fmt(stats.best?.avgRevenue || 0)} / day</div>
-              </CardContent>
-            </Card>
-            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
-              <CardContent className="pt-4 pb-4">
-                <div className="text-xs text-red-700 font-medium uppercase mb-1">{t("weakestDay")}</div>
-                <div className="text-2xl font-bold text-red-800">{DAYS[DAY_SHORT.indexOf(stats.worst?.day)]}</div>
-                <div className="text-sm text-red-700 mt-0.5">
-                  Avg {fmt(stats.worst?.avgRevenue || 0)} / day
-                  {stats.best && stats.worst && (
-                    <span> ({(((stats.worst.avgRevenue - stats.best.avgRevenue) / stats.best.avgRevenue) * 100).toFixed(0)}% vs best)</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-              <CardContent className="pt-4 pb-4">
-                <div className="text-xs text-blue-700 font-medium uppercase mb-1">{t("weekdayVsWeekend")}</div>
-                <div className="text-2xl font-bold text-blue-800">{stats.weekdayRev > stats.weekendRev ? t("weekdaysHigher") : t("weekendsHigher")}</div>
-                <div className="text-sm text-blue-700 mt-0.5">
-                  Weekday avg {fmt(stats.weekdayRev)} · Weekend avg {fmt(stats.weekendRev)}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Avg Revenue by Day of Week */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("avgRevByDayOfWeek")}</CardTitle>
-              <CardDescription>Based on all available EOD data</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={stats.avgRevByDow} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} width={60} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => fmt(v)} labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
-                  <Bar dataKey="avgRevenue" name={t("avgRevenue")} radius={[4, 4, 0, 0]}>
-                    {stats.avgRevByDow.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={entry.day === stats.best?.day ? "#10b981" : entry.day === stats.worst?.day ? "#ef4444" : "#3b82f6"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Avg Transactions & Failure Rate side by side */}
-          <div className="grid md:grid-cols-2 gap-6">
+          {allEod.length === 0 ? (
             <Card>
-              <CardHeader>
-                <CardTitle>{t("avgTxByDayOfWeek")}</CardTitle>
-                <CardDescription>Transaction volume patterns</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={stats.avgRevByDow} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
-                    <Bar dataKey="avgTransactions" name={t("avgTransactions")} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="mt-3 grid grid-cols-7 gap-1">
-                  {stats.avgRevByDow.map((d) => (
-                    <div key={d.day} className="text-center">
-                      <div className="text-xs font-medium text-gray-500">{d.day}</div>
-                      <div className="text-xs font-bold">{d.avgTransactions}</div>
-                      <div className="text-xs text-muted-foreground">{d.days}d</div>
+              <CardContent className="py-16 text-center text-muted-foreground">
+                No EOD data available yet. Statistics will appear once terminals start pushing end-of-day reports.
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Insights cards */}
+              <div className="grid md:grid-cols-3 gap-4">
+                <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="text-xs text-green-700 font-medium uppercase mb-1">{t("bestPerformingDay")}</div>
+                    <div className="text-2xl font-bold text-green-800">{DAYS[DAY_SHORT.indexOf(stats.best?.day)]}</div>
+                    <div className="text-sm text-green-700 mt-0.5">Avg {fmt(stats.best?.avgRevenue || 0)} / day</div>
+                  </CardContent>
+                </Card>
+                <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="text-xs text-red-700 font-medium uppercase mb-1">{t("weakestDay")}</div>
+                    <div className="text-2xl font-bold text-red-800">{DAYS[DAY_SHORT.indexOf(stats.worst?.day)]}</div>
+                    <div className="text-sm text-red-700 mt-0.5">Avg {fmt(stats.worst?.avgRevenue || 0)} / day</div>
+                  </CardContent>
+                </Card>
+                <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="text-xs text-blue-700 font-medium uppercase mb-1">{t("weekdayVsWeekend")}</div>
+                    <div className="text-2xl font-bold text-blue-800">{stats.weekdayRev > stats.weekendRev ? t("weekdaysHigher") : t("weekendsHigher")}</div>
+                    <div className="text-sm text-blue-700 mt-0.5">
+                      Weekday avg {fmt(stats.weekdayRev)} · Weekend avg {fmt(stats.weekendRev)}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("failureRateByDay")}</CardTitle>
-                <CardDescription>% failed transactions per day</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={stats.failRateByDow} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                    <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => `${v}%`} labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
-                    <Bar dataKey="failRate" name={t("failureRate")} fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
+              {/* Avg Revenue by Day of Week */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("avgRevByDayOfWeek")}</CardTitle>
+                  <CardDescription>Based on all available EOD data ({allEod.length} reports)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={stats.avgRevByDow} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                      <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} width={60} tick={{ fontSize: 11 }} />
+                      <Tooltip formatter={(v: number) => fmt(v)} labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
+                      <Bar dataKey="avgRevenue" name={t("avgRevenue")} radius={[4, 4, 0, 0]}>
+                        {stats.avgRevByDow.map((entry, i) => (
+                          <Cell
+                            key={i}
+                            fill={entry.day === stats.best?.day ? "#10b981" : entry.day === stats.worst?.day ? "#ef4444" : "#3b82f6"}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-          {/* Monthly Trend */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("monthlyRevenueTrend")}</CardTitle>
-              <CardDescription>Aggregated revenue by month</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={stats.monthlyTrend} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} width={70} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => fmt(v)} />
-                  <Area type="monotone" dataKey="revenue" name={t("revenue")} stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              {/* Avg Transactions & Failure Rate side by side */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("avgTxByDayOfWeek")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={stats.avgRevByDow} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
+                        <Bar dataKey="avgTransactions" name={t("avgTransactions")} fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
 
-          {/* Full breakdown table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("dayOfWeekBreakdown")}</CardTitle>
-              <CardDescription>Detailed stats per day of week</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("date")}</TableHead>
-                    <TableHead>{t("avgRevenue")}</TableHead>
-                    <TableHead>{t("avgTransactions")}</TableHead>
-                    <TableHead>{t("failureRate")}</TableHead>
-                    <TableHead>{t("vsBestDay")}</TableHead>
-                    <TableHead>{t("sampleDays")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stats.avgRevByDow.map((d, i) => {
-                    const failRate = stats.failRateByDow[i]?.failRate || 0;
-                    const vsBest = stats.best ? ((d.avgRevenue - stats.best.avgRevenue) / stats.best.avgRevenue) * 100 : 0;
-                    const isBest = d.day === stats.best?.day;
-                    const isWorst = d.day === stats.worst?.day;
-                    return (
-                      <TableRow key={d.day} className={isBest ? "bg-green-50 dark:bg-green-950/20" : isWorst ? "bg-red-50 dark:bg-red-950/20" : ""}>
-                        <TableCell className="font-medium">
-                          <span className="flex items-center gap-2">
-                            {DAYS[i]}
-                            {isBest && <Badge className="bg-green-100 text-green-700 text-xs">Best</Badge>}
-                            {isWorst && <Badge className="bg-red-100 text-red-700 text-xs">Lowest</Badge>}
-                          </span>
-                        </TableCell>
-                        <TableCell className="font-medium">{fmt(d.avgRevenue)}</TableCell>
-                        <TableCell>{d.avgTransactions}</TableCell>
-                        <TableCell>
-                          <Badge className={failRate > 6 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}>
-                            {failRate}%
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {isBest ? (
-                            <span className="text-green-600 font-medium">—</span>
-                          ) : (
-                            <span className={vsBest < 0 ? "text-red-600" : "text-green-600"}>
-                              {vsBest >= 0 ? "+" : ""}{vsBest.toFixed(1)}%
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{d.days}</TableCell>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("failureRateByDay")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={stats.failRateByDow} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                        <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(v: number) => `${v}%`} labelFormatter={(l) => DAYS[DAY_SHORT.indexOf(l)]} />
+                        <Bar dataKey="failRate" name={t("failureRate")} fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Monthly Trend */}
+              {stats.monthlyTrend.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("monthlyRevenueTrend")}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={240}>
+                      <AreaChart data={stats.monthlyTrend} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} width={70} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(v: number) => fmt(v)} />
+                        <Area type="monotone" dataKey="revenue" name={t("revenue")} stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Full breakdown table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("dayOfWeekBreakdown")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("date")}</TableHead>
+                        <TableHead>{t("avgRevenue")}</TableHead>
+                        <TableHead>{t("avgTransactions")}</TableHead>
+                        <TableHead>{t("failureRate")}</TableHead>
+                        <TableHead>{t("vsBestDay")}</TableHead>
+                        <TableHead>{t("sampleDays")}</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {stats.avgRevByDow.map((d, i) => {
+                        const failRate = stats.failRateByDow[i]?.failRate || 0;
+                        const vsBest = stats.best ? ((d.avgRevenue - stats.best.avgRevenue) / (stats.best.avgRevenue || 1)) * 100 : 0;
+                        const isBest = d.day === stats.best?.day;
+                        const isWorst = d.day === stats.worst?.day;
+                        return (
+                          <TableRow key={d.day} className={isBest ? "bg-green-50 dark:bg-green-950/20" : isWorst ? "bg-red-50 dark:bg-red-950/20" : ""}>
+                            <TableCell className="font-medium">
+                              <span className="flex items-center gap-2">
+                                {DAYS[i]}
+                                {isBest && <Badge className="bg-green-100 text-green-700 text-xs">Best</Badge>}
+                                {isWorst && <Badge className="bg-red-100 text-red-700 text-xs">Lowest</Badge>}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-medium">{fmt(d.avgRevenue)}</TableCell>
+                            <TableCell>{d.avgTransactions}</TableCell>
+                            <TableCell>
+                              <Badge className={failRate > 6 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}>
+                                {failRate}%
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {isBest ? (
+                                <span className="text-green-600 font-medium">—</span>
+                              ) : (
+                                <span className={vsBest < 0 ? "text-red-600" : "text-green-600"}>
+                                  {vsBest >= 0 ? "+" : ""}{vsBest.toFixed(1)}%
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{d.days}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -105,6 +105,16 @@ async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `);
 
+  // ── Scope transactions and terminals to a customer ────────────────────────────
+  await pool.query(`
+    ALTER TABLE transactions
+      ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
+  `);
+  await pool.query(`
+    ALTER TABLE terminals
+      ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
+  `);
+
   // ── Password reset tokens ────────────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -157,10 +167,41 @@ function requireAuth(req, res, next) {
 }
 
 function makeTokens(user) {
-  const payload = { id: user.id, email: user.email, name: user.name, role: normalizeRole(user.role) };
+  const payload = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: normalizeRole(user.role),
+    customer_id: user.customer_id || null,
+  };
   const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   const refreshToken = jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_EXPIRES_IN });
   return { accessToken, refreshToken };
+}
+
+// ── Multi-tenant helper ───────────────────────────────────────────────────────
+// Returns { where: 'WHERE customer_id = $1', params: [id] } for non-admin users
+// or     { where: '', params: [] } if super_admin with no filter
+// or     { where: 'WHERE customer_id = $1', params: [cid] } if super_admin filtered
+function tenantFilter(req, paramOffset = 0) {
+  const isSA = normalizeRole(req.user.role) === SUPER_ADMIN_ROLE;
+  // super_admin can optionally filter via ?customer_id=X query param
+  const requestedCid = req.query.customer_id ? parseInt(req.query.customer_id) : null;
+
+  if (isSA) {
+    if (requestedCid) {
+      return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [requestedCid] };
+    }
+    return { clause: '', params: [] };
+  }
+
+  // Non-super-admin: must be scoped to their customer
+  const cid = req.user.customer_id;
+  if (!cid) {
+    // No customer assigned → no data
+    return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [-1] };
+  }
+  return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [cid] };
 }
 
 function makeMfaToken(user) {
@@ -506,8 +547,10 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
 // ─── Transactions ─────────────────────────────────────────────────────────────
 app.get('/api/payment/transactions', requireAuth, requirePermission(PERMISSIONS.VIEW_TRANSACTIONS), async (req, res) => {
   try {
+    const { clause, params } = tenantFilter(req);
     const { rows } = await pool.query(
-      'SELECT * FROM transactions ORDER BY created_at DESC'
+      `SELECT * FROM transactions ${clause} ORDER BY created_at DESC`,
+      params
     );
     res.json({ items: rows, total: rows.length });
   } catch (err) {
@@ -518,6 +561,7 @@ app.get('/api/payment/transactions', requireAuth, requirePermission(PERMISSIONS.
 
 app.get('/api/payment/transactions/stats', requireAuth, requirePermission(PERMISSIONS.VIEW_PAYMENT_DATA), async (req, res) => {
   try {
+    const { clause, params } = tenantFilter(req);
     const { rows } = await pool.query(`
       SELECT
         COUNT(*) AS total,
@@ -526,8 +570,8 @@ app.get('/api/payment/transactions/stats', requireAuth, requirePermission(PERMIS
         COUNT(*) FILTER (WHERE state = 'FAILED') AS failed,
         COUNT(*) FILTER (WHERE state = 'pending') AS pending,
         COUNT(*) FILTER (WHERE state = 'refunded') AS refunded
-      FROM transactions
-    `);
+      FROM transactions ${clause}
+    `, params);
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -537,7 +581,12 @@ app.get('/api/payment/transactions/stats', requireAuth, requirePermission(PERMIS
 
 app.get('/api/payment/transactions/:id', requireAuth, requirePermission(PERMISSIONS.VIEW_TRANSACTIONS), async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM transactions WHERE id = $1', [req.params.id]);
+    const { clause, params } = tenantFilter(req);
+    const andClause = clause ? clause.replace('WHERE', 'AND') : '';
+    const { rows } = await pool.query(
+      `SELECT * FROM transactions WHERE id = $${params.length + 1} ${andClause}`,
+      [...params, req.params.id]
+    );
     if (!rows[0]) return res.status(404).json({ message: 'Transaction introuvable' });
     res.json(rows[0]);
   } catch (err) {
@@ -591,7 +640,11 @@ app.delete('/api/payment/transactions/:id', requireAuth, requirePermission(PERMI
 // ─── Terminals ────────────────────────────────────────────────────────────────
 app.get('/api/terminals', requireAuth, requirePermission(PERMISSIONS.VIEW_TERMINALS), async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM terminals ORDER BY created_at DESC');
+    const { clause, params } = tenantFilter(req);
+    const { rows } = await pool.query(
+      `SELECT * FROM terminals ${clause} ORDER BY created_at DESC`,
+      params
+    );
     res.json({ items: rows, total: rows.length });
   } catch (err) {
     console.error(err);
@@ -601,7 +654,12 @@ app.get('/api/terminals', requireAuth, requirePermission(PERMISSIONS.VIEW_TERMIN
 
 app.get('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.VIEW_TERMINALS), async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM terminals WHERE id = $1', [req.params.id]);
+    const { clause, params } = tenantFilter(req);
+    const andClause = clause ? clause.replace('WHERE', 'AND') : '';
+    const { rows } = await pool.query(
+      `SELECT * FROM terminals WHERE id = $${params.length + 1} ${andClause}`,
+      [...params, req.params.id]
+    );
     if (!rows[0]) return res.status(404).json({ message: 'Terminal introuvable' });
     res.json(rows[0]);
   } catch (err) {
@@ -612,10 +670,11 @@ app.get('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.VIEW_TE
 
 app.post('/api/terminals', requireAuth, requirePermission(PERMISSIONS.MANAGE_TERMINALS), async (req, res) => {
   const { name, serial_number, status, location, model } = req.body;
+  const customer_id = req.user.customer_id || null;
   try {
     const { rows } = await pool.query(
-      'INSERT INTO terminals (name, serial_number, status, location, model) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [name, serial_number, status || 'active', location, model]
+      'INSERT INTO terminals (name, serial_number, status, location, model, customer_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [name, serial_number, status || 'active', location, model, customer_id]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -652,20 +711,19 @@ app.delete('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.MANA
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 app.get('/api/dashboard/overview', requireAuth, requirePermission(PERMISSIONS.VIEW_PAYMENT_DATA), async (req, res) => {
   try {
+    const { clause, params } = tenantFilter(req);
     const txResult = await pool.query(`
       SELECT
         COUNT(*) AS total_transactions,
         COALESCE(SUM(amount) FILTER (WHERE state = 'FULFILL'), 0) AS total_revenue,
         COUNT(*) FILTER (WHERE state = 'FULFILL') AS successful,
         COUNT(*) FILTER (WHERE state = 'FAILED') AS failed
-      FROM transactions
-    `);
-    const termResult = await pool.query(`
-      SELECT
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE status = 'active') AS active
-      FROM terminals
-    `);
+      FROM transactions ${clause}
+    `, params);
+    const termResult = await pool.query(
+      `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'active') AS active FROM terminals ${clause}`,
+      params
+    );
     res.json({
       transactions: txResult.rows[0],
       terminals: termResult.rows[0],
@@ -678,6 +736,8 @@ app.get('/api/dashboard/overview', requireAuth, requirePermission(PERMISSIONS.VI
 
 app.get('/api/dashboard/stats', requireAuth, requirePermission(PERMISSIONS.GENERATE_REPORTS), async (req, res) => {
   try {
+    const { clause, params } = tenantFilter(req);
+    const andOrWhere = clause ? clause.replace('WHERE', 'AND') : '';
     const { rows } = await pool.query(`
       SELECT
         DATE_TRUNC('day', created_at) AS day,
@@ -685,9 +745,10 @@ app.get('/api/dashboard/stats', requireAuth, requirePermission(PERMISSIONS.GENER
         COALESCE(SUM(amount), 0) AS total
       FROM transactions
       WHERE created_at >= NOW() - INTERVAL '30 days'
+      ${andOrWhere}
       GROUP BY day
       ORDER BY day
-    `);
+    `, params);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -697,8 +758,10 @@ app.get('/api/dashboard/stats', requireAuth, requirePermission(PERMISSIONS.GENER
 
 app.get('/api/dashboard/recent-activity', requireAuth, requirePermission(PERMISSIONS.VIEW_PAYMENT_DATA), async (req, res) => {
   try {
+    const { clause, params } = tenantFilter(req);
     const { rows } = await pool.query(
-      'SELECT * FROM transactions ORDER BY created_at DESC LIMIT 10'
+      `SELECT * FROM transactions ${clause} ORDER BY created_at DESC LIMIT 10`,
+      params
     );
     res.json({ activities: rows });
   } catch (err) {

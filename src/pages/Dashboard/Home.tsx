@@ -18,6 +18,7 @@ import {
   Eye,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { APP_PERMISSIONS, hasPermission } from "../../lib/permissions";
 import { 
   BarChart, 
   Bar, 
@@ -36,6 +37,7 @@ import {
 const COLORS = ['hsl(218, 89%, 51%)', 'hsl(28, 95%, 58%)', '#8884d8', '#82ca9d', '#ffc658'];
 export default function Home() {
   const { user } = useAuth();
+  const canGenerateReports = hasPermission(user?.role, APP_PERMISSIONS.GENERATE_REPORTS);
   const changePercentage = ((mockKPIs.todayRevenue - mockKPIs.yesterdayRevenue) / mockKPIs.yesterdayRevenue * 100);
   return (
     <>
@@ -44,16 +46,18 @@ export default function Home() {
           <h1 className="text-3xl font-bold text-text-primary">Payment Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, {user?.name}. Here's your hotel's payment overview.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
-          <Button size="sm" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
-            <Eye className="h-4 w-4 mr-2" />
-            View Details
-          </Button>
-        </div>
+        {canGenerateReports && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export Report
+            </Button>
+            <Button size="sm" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+              <Eye className="h-4 w-4 mr-2" />
+              View Details
+            </Button>
+          </div>
+        )}
       </div>
       <PageMeta
         title="React.js Transactions Dashboard | TailAdmin - React.js Admin Dashboard Template"

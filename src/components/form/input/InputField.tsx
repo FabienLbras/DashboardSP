@@ -4,6 +4,7 @@ export interface InputProps {
   type?: "text" | "number" | "email" | "password" | "date" | "time" | string;
   id?: string;
   name?: string;
+  autoComplete?: string;
   placeholder?: string;
   value?: string | number;
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -22,6 +23,7 @@ const InputField: FC<InputProps> = ({
   type = "text",
   id,
   name,
+  autoComplete,
   placeholder,
   value,
   onChange,
@@ -53,6 +55,7 @@ const InputField: FC<InputProps> = ({
         type={type}
         id={id}
         name={name}
+        autoComplete={autoComplete}
         placeholder={placeholder}
         value={value}
         onChange={onChange}

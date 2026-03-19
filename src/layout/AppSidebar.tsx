@@ -19,6 +19,8 @@ import {
 import { useSidebar } from "../context/SidebarContext";
 import Logo from "../assets/logo2.png";
 import { CircleQuestionMarkIcon, FileText } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
 type NavItem = {
   name: string;
@@ -76,6 +78,7 @@ const settingsItems: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { user } = useAuth();
   const location = useLocation();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
@@ -141,6 +144,16 @@ const AppSidebar: React.FC = () => {
       return { type: menuType, index };
     });
   };
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.path === "/terminals") {
+      return hasPermission(user?.role, APP_PERMISSIONS.VIEW_TERMINALS);
+    }
+    if (item.path === "/invoices") {
+      return hasPermission(user?.role, APP_PERMISSIONS.ACCESS_ECOMMERCE_DATA);
+    }
+    return true;
+  });
 
   const renderMenuItems = (items: NavItem[], menuType: "main" | "management" | "account") => (
     <ul className="flex flex-col gap-4">
@@ -312,7 +325,7 @@ const AppSidebar: React.FC = () => {
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
-              {renderMenuItems(navItems, "main")}
+              {renderMenuItems(filteredNavItems, "main")}
             </div>
 
             <div>

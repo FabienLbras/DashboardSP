@@ -31,8 +31,11 @@ import { mockTerminals } from "../data/mockData";
 import { useToast } from "../hooks/useToast";
 import { TerminalConfigDialog } from "../components/terminals/TerminalConfigDialog";
 import TerminalActivityDialog from "../components/terminals/TerminalActivityDialog";
+import { useAuth } from "../context/AuthContext";
+import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
 export default function Terminals() {
+  const { user } = useAuth();
   const [terminals, setTerminals] = useState(mockTerminals);
   const [configDialog, setConfigDialog] = useState<{ open: boolean; terminal: any }>({ 
     open: false, 
@@ -43,6 +46,7 @@ export default function Terminals() {
     terminal: null 
   });
   const { toast } = useToast();
+  const canManageTerminals = hasPermission(user?.role, APP_PERMISSIONS.MANAGE_TERMINALS);
 
   const toggleTerminalStatus = (terminalId: string) => {
     setTerminals(prev => prev.map(terminal => {
@@ -104,10 +108,12 @@ export default function Terminals() {
           <h1 className="text-3xl font-bold text-text-primary">Terminal Management</h1>
           <p className="text-muted-foreground">Monitor and manage all connected payment terminals</p>
         </div>
-        <Button className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Terminal
-        </Button>
+        {canManageTerminals && (
+          <Button className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Terminal
+          </Button>
+        )}
       </div>
 
       {/* Overview Cards */}
@@ -197,54 +203,67 @@ export default function Terminals() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <Button
-                        variant={terminal.status === "online" ? "destructive" : "default"}
-                        className={`${terminal.status === "online" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"} text-white`}
-                        size="sm"
-                        onClick={() => toggleTerminalStatus(terminal.id)}
-                      >
-                        {terminal.status === "online" ? (
-                          <>
-                            <PowerOff className="h-4 w-4 mr-1" />
-                            Deactivate
-                          </>
-                        ) : (
-                          <>
-                            <Power className="h-4 w-4 mr-1" />
-                            Activate
-                          </>
-                        )}
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
+                      {canManageTerminals ? (
+                        <>
+                          <Button
+                            variant={terminal.status === "online" ? "destructive" : "default"}
+                            className={`${terminal.status === "online" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"} text-white`}
+                            size="sm"
+                            onClick={() => toggleTerminalStatus(terminal.id)}
+                          >
+                            {terminal.status === "online" ? (
+                              <>
+                                <PowerOff className="h-4 w-4 mr-1" />
+                                Deactivate
+                              </>
+                            ) : (
+                              <>
+                                <Power className="h-4 w-4 mr-1" />
+                                Activate
+                              </>
+                            )}
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            onClick={() => setConfigDialog({ open: true, terminal })}
-                          >
-                            <Settings className="h-4 w-4 mr-2" />
-                            Configure
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => setActivityDialog({ open: true, terminal })}
-                          >
-                            <Activity className="h-4 w-4 mr-2" />
-                            View Activity
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {terminal.status === "offline" && (
-                            <DropdownMenuItem 
-                              onClick={() => toggleTerminalStatus(terminal.id)}
-                            >
-                              <Wifi className="h-4 w-4 mr-2" />
-                              Reconnect
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => setConfigDialog({ open: true, terminal })}
+                              >
+                                <Settings className="h-4 w-4 mr-2" />
+                                Configure
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => setActivityDialog({ open: true, terminal })}
+                              >
+                                <Activity className="h-4 w-4 mr-2" />
+                                View Activity
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {terminal.status === "offline" && (
+                                <DropdownMenuItem 
+                                  onClick={() => toggleTerminalStatus(terminal.id)}
+                                >
+                                  <Wifi className="h-4 w-4 mr-2" />
+                                  Reconnect
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setActivityDialog({ open: true, terminal })}
+                        >
+                          <Activity className="h-4 w-4 mr-1" />
+                          View Activity
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

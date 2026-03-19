@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
+const crypto = require('crypto');
 const pool = require('./db');
 
 const app = express();
@@ -9,11 +12,84 @@ const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dashboard-local-secret';
 const JWT_EXPIRES_IN = '1h';
 const REFRESH_EXPIRES_IN = '7d';
+const MFA_TOKEN_EXPIRES_IN = '5m'; // short-lived token for MFA challenge
+const PERMISSIONS = {
+  VIEW_PAYMENT_DATA: 'view_payment_data',
+  VIEW_TRANSACTIONS: 'view_transactions',
+  GENERATE_REPORTS: 'generate_reports',
+  EXPORT_REPORTS: 'export_reports',
+  VIEW_EOD_REPORTS: 'view_eod_reports',
+  USE_VIRTUAL_TERMINAL: 'use_virtual_terminal',
+  VIEW_TERMINALS: 'view_terminals',
+  MANAGE_TERMINALS: 'manage_terminals',
+  ACCESS_ECOMMERCE_DATA: 'access_ecommerce_data',
+  ACCESS_STANDARD_PREMIUM: 'access_standard_premium',
+  MANAGE_USERS: 'manage_users',
+  MODIFY_SYSTEM_CONFIG: 'modify_system_config',
+  MODIFY_GLOBAL_SETTINGS: 'modify_global_settings',
+};
+const ALL_PERMISSIONS = Object.values(PERMISSIONS);
+const ROLE_PERMISSIONS = {
+  hotel_manager: ALL_PERMISSIONS,
+  financial_manager: ALL_PERMISSIONS,
+  admin: ALL_PERMISSIONS,
+  front_office_manager: [
+    PERMISSIONS.VIEW_PAYMENT_DATA,
+    PERMISSIONS.VIEW_TRANSACTIONS,
+    PERMISSIONS.GENERATE_REPORTS,
+    PERMISSIONS.EXPORT_REPORTS,
+    PERMISSIONS.VIEW_EOD_REPORTS,
+    PERMISSIONS.USE_VIRTUAL_TERMINAL,
+  ],
+  front_office_operator: [
+    PERMISSIONS.VIEW_PAYMENT_DATA,
+    PERMISSIONS.VIEW_TRANSACTIONS,
+  ],
+};
 
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
+async function ensureSchema() {
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS mfa_secret VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS mfa_pending_secret VARCHAR(255)
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mfa_backup_codes (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      code_hash VARCHAR(255) NOT NULL,
+      used BOOLEAN DEFAULT FALSE,
+      used_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+}
+
+function normalizeRole(role) {
+  if (!role) return 'front_office_operator';
+  return String(role).trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
+function hasPermission(role, permission) {
+  const normalizedRole = normalizeRole(role);
+  return (ROLE_PERMISSIONS[normalizedRole] || []).includes(permission);
+}
+
 // ─── Middleware: auth ─────────────────────────────────────────────────────────
+function requirePermission(permission) {
+  return (req, res, next) => {
+    if (!hasPermission(req.user.role, permission)) {
+      return res.status(403).json({ message: 'Accès interdit' });
+    }
+    next();
+  };
+}
+
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) {
@@ -28,10 +104,22 @@ function requireAuth(req, res, next) {
 }
 
 function makeTokens(user) {
-  const payload = { id: user.id, email: user.email, name: user.name };
+  const payload = { id: user.id, email: user.email, name: user.name, role: normalizeRole(user.role) };
   const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   const refreshToken = jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_EXPIRES_IN });
   return { accessToken, refreshToken };
+}
+
+function makeMfaToken(user) {
+  return jwt.sign({ id: user.id, mfa_challenge: true }, JWT_SECRET, { expiresIn: MFA_TOKEN_EXPIRES_IN });
+}
+
+function generateBackupCodes() {
+  const codes = [];
+  for (let i = 0; i < 10; i++) {
+    codes.push(crypto.randomBytes(5).toString('hex').toUpperCase()); // e.g. "A3F2B9C1E0"
+  }
+  return codes;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -48,6 +136,12 @@ app.post('/api/auth/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ message: 'Identifiants incorrects' });
 
+    // If MFA is enabled, return a short-lived challenge token instead of full tokens
+    if (user.mfa_enabled) {
+      const mfaToken = makeMfaToken(user);
+      return res.json({ mfaRequired: true, mfaToken });
+    }
+
     const { accessToken, refreshToken } = makeTokens(user);
     res.json({
       accessToken,
@@ -56,7 +150,69 @@ app.post('/api/auth/login', async (req, res) => {
       expiresIn: 3600,
       email: user.email,
       name: user.name,
+      role: normalizeRole(user.role),
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Verify MFA OTP during login (also accepts backup codes)
+app.post('/api/auth/mfa/login-verify', async (req, res) => {
+  const { mfaToken, code } = req.body;
+  if (!mfaToken || !code) {
+    return res.status(400).json({ message: 'mfaToken et code requis' });
+  }
+  try {
+    let decoded;
+    try {
+      decoded = jwt.verify(mfaToken, JWT_SECRET);
+    } catch {
+      return res.status(401).json({ message: 'Token MFA invalide ou expiré' });
+    }
+    if (!decoded.mfa_challenge) {
+      return res.status(401).json({ message: 'Token invalide' });
+    }
+
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [decoded.id]);
+    const user = rows[0];
+    if (!user || !user.mfa_enabled || !user.mfa_secret) {
+      return res.status(401).json({ message: 'MFA non configuré' });
+    }
+
+    // Try TOTP first
+    const totpValid = speakeasy.totp.verify({
+      secret: user.mfa_secret,
+      encoding: 'base32',
+      token: code.replace(/\s/g, ''),
+      window: 1,
+    });
+
+    if (totpValid) {
+      const { accessToken, refreshToken } = makeTokens(user);
+      return res.json({ accessToken, refreshToken, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role) });
+    }
+
+    // Try backup code
+    const normalizedCode = code.replace(/\s|-/g, '').toUpperCase();
+    const { rows: backupRows } = await pool.query(
+      'SELECT * FROM mfa_backup_codes WHERE user_id = $1 AND used = FALSE',
+      [user.id]
+    );
+    for (const row of backupRows) {
+      const match = await bcrypt.compare(normalizedCode, row.code_hash);
+      if (match) {
+        await pool.query(
+          'UPDATE mfa_backup_codes SET used = TRUE, used_at = NOW() WHERE id = $1',
+          [row.id]
+        );
+        const { accessToken, refreshToken } = makeTokens(user);
+        return res.json({ accessToken, refreshToken, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role), usedBackupCode: true });
+      }
+    }
+
+    return res.status(401).json({ message: 'Code invalide' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
@@ -72,7 +228,7 @@ app.post('/api/auth/refresh', async (req, res) => {
     const user = rows[0];
     if (!user) return res.status(401).json({ message: 'Utilisateur introuvable' });
     const tokens = makeTokens(user);
-    res.json({ ...tokens, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name });
+    res.json({ ...tokens, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role) });
   } catch {
     res.status(401).json({ message: 'Refresh token invalide' });
   }
@@ -84,6 +240,186 @@ app.get('/api/auth/validate', requireAuth, (req, res) => {
 
 app.post('/api/auth/logout', (req, res) => {
   res.json({ message: 'Déconnecté' });
+});
+
+// ─── MFA Management ───────────────────────────────────────────────────────────
+
+// Get current MFA status
+app.get('/api/auth/mfa/status', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT mfa_enabled FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const { rows: backupRows } = await pool.query(
+      'SELECT COUNT(*) AS remaining FROM mfa_backup_codes WHERE user_id = $1 AND used = FALSE',
+      [req.user.id]
+    );
+    res.json({
+      mfaEnabled: rows[0]?.mfa_enabled || false,
+      backupCodesRemaining: parseInt(backupRows[0]?.remaining || '0'),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Start MFA setup: generate secret + QR code
+app.post('/api/auth/mfa/setup', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    if (user.mfa_enabled) {
+      return res.status(400).json({ message: 'MFA déjà activé' });
+    }
+
+    const secret = speakeasy.generateSecret({ name: `Dashboard (${user.email})`, length: 20 });
+    // Store pending secret (not yet confirmed)
+    await pool.query('UPDATE users SET mfa_pending_secret = $1 WHERE id = $2', [secret.base32, user.id]);
+
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+    res.json({ secret: secret.base32, qrCode: qrCodeUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Confirm MFA setup: verify OTP then activate + generate backup codes
+app.post('/api/auth/mfa/confirm', requireAuth, async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ message: 'Code requis' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    if (!user.mfa_pending_secret) {
+      return res.status(400).json({ message: 'Aucun setup en cours' });
+    }
+
+    const valid = speakeasy.totp.verify({
+      secret: user.mfa_pending_secret,
+      encoding: 'base32',
+      token: code.replace(/\s/g, ''),
+      window: 1,
+    });
+    if (!valid) return res.status(401).json({ message: 'Code invalide' });
+
+    // Activate MFA
+    await pool.query(
+      'UPDATE users SET mfa_enabled = TRUE, mfa_secret = mfa_pending_secret, mfa_pending_secret = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    // Generate 10 backup codes
+    const plainCodes = generateBackupCodes();
+    // Delete any existing backup codes
+    await pool.query('DELETE FROM mfa_backup_codes WHERE user_id = $1', [user.id]);
+    for (const code of plainCodes) {
+      const hash = await bcrypt.hash(code, 10);
+      await pool.query(
+        'INSERT INTO mfa_backup_codes (user_id, code_hash) VALUES ($1, $2)',
+        [user.id, hash]
+      );
+    }
+
+    // Return plain codes once — they won't be shown again
+    res.json({ backupCodes: plainCodes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Disable MFA (requires valid OTP or backup code + password)
+app.post('/api/auth/mfa/disable', requireAuth, async (req, res) => {
+  const { code, password } = req.body;
+  if (!code || !password) return res.status(400).json({ message: 'Code et mot de passe requis' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    if (!user.mfa_enabled) return res.status(400).json({ message: 'MFA non activé' });
+
+    const passwordValid = await bcrypt.compare(password, user.password_hash);
+    if (!passwordValid) return res.status(401).json({ message: 'Mot de passe incorrect' });
+
+    const totpValid = speakeasy.totp.verify({
+      secret: user.mfa_secret,
+      encoding: 'base32',
+      token: code.replace(/\s/g, ''),
+      window: 1,
+    });
+
+    let backupCodeId = null;
+    if (!totpValid) {
+      const normalizedCode = code.replace(/\s|-/g, '').toUpperCase();
+      const { rows: backupRows } = await pool.query(
+        'SELECT * FROM mfa_backup_codes WHERE user_id = $1 AND used = FALSE',
+        [user.id]
+      );
+
+      for (const row of backupRows) {
+        const match = await bcrypt.compare(normalizedCode, row.code_hash);
+        if (match) {
+          backupCodeId = row.id;
+          break;
+        }
+      }
+
+      if (!backupCodeId) {
+        return res.status(401).json({ message: 'Code invalide' });
+      }
+    }
+
+    if (backupCodeId) {
+      await pool.query(
+        'UPDATE mfa_backup_codes SET used = TRUE, used_at = NOW() WHERE id = $1',
+        [backupCodeId]
+      );
+    }
+
+    await pool.query(
+      'UPDATE users SET mfa_enabled = FALSE, mfa_secret = NULL, mfa_pending_secret = NULL WHERE id = $1',
+      [user.id]
+    );
+    await pool.query('DELETE FROM mfa_backup_codes WHERE user_id = $1', [user.id]);
+
+    res.json({ message: 'MFA désactivé' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Regenerate backup codes (requires valid OTP)
+app.post('/api/auth/mfa/backup-codes/regenerate', requireAuth, async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ message: 'Code OTP requis' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    if (!user.mfa_enabled) return res.status(400).json({ message: 'MFA non activé' });
+
+    const totpValid = speakeasy.totp.verify({
+      secret: user.mfa_secret,
+      encoding: 'base32',
+      token: code.replace(/\s/g, ''),
+      window: 1,
+    });
+    if (!totpValid) return res.status(401).json({ message: 'Code invalide' });
+
+    const plainCodes = generateBackupCodes();
+    await pool.query('DELETE FROM mfa_backup_codes WHERE user_id = $1', [user.id]);
+    for (const c of plainCodes) {
+      const hash = await bcrypt.hash(c, 10);
+      await pool.query('INSERT INTO mfa_backup_codes (user_id, code_hash) VALUES ($1, $2)', [user.id, hash]);
+    }
+
+    res.json({ backupCodes: plainCodes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
 });
 
 // ─── User ─────────────────────────────────────────────────────────────────────
@@ -115,7 +451,7 @@ app.put('/api/user/profile', requireAuth, async (req, res) => {
 });
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
-app.get('/api/payment/transactions', requireAuth, async (req, res) => {
+app.get('/api/payment/transactions', requireAuth, requirePermission(PERMISSIONS.VIEW_TRANSACTIONS), async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT * FROM transactions ORDER BY created_at DESC'
@@ -127,7 +463,7 @@ app.get('/api/payment/transactions', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/payment/transactions/stats', requireAuth, async (req, res) => {
+app.get('/api/payment/transactions/stats', requireAuth, requirePermission(PERMISSIONS.VIEW_PAYMENT_DATA), async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT
@@ -146,7 +482,7 @@ app.get('/api/payment/transactions/stats', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/payment/transactions/:id', requireAuth, async (req, res) => {
+app.get('/api/payment/transactions/:id', requireAuth, requirePermission(PERMISSIONS.VIEW_TRANSACTIONS), async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM transactions WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ message: 'Transaction introuvable' });
@@ -157,7 +493,7 @@ app.get('/api/payment/transactions/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/payment/transactions', requireAuth, async (req, res) => {
+app.post('/api/payment/transactions', requireAuth, requirePermission(PERMISSIONS.USE_VIRTUAL_TERMINAL), async (req, res) => {
   const { reference, amount, currency, state, payment_method, terminal_id, customer_name, customer_email, description } = req.body;
   try {
     const { rows } = await pool.query(
@@ -172,7 +508,7 @@ app.post('/api/payment/transactions', requireAuth, async (req, res) => {
   }
 });
 
-app.put('/api/payment/transactions/:id', requireAuth, async (req, res) => {
+app.put('/api/payment/transactions/:id', requireAuth, requirePermission(PERMISSIONS.USE_VIRTUAL_TERMINAL), async (req, res) => {
   const { amount, currency, state, payment_method, customer_name, customer_email, description } = req.body;
   try {
     const { rows } = await pool.query(
@@ -189,7 +525,7 @@ app.put('/api/payment/transactions/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/payment/transactions/:id', requireAuth, async (req, res) => {
+app.delete('/api/payment/transactions/:id', requireAuth, requirePermission(PERMISSIONS.MODIFY_SYSTEM_CONFIG), async (req, res) => {
   try {
     await pool.query('DELETE FROM transactions WHERE id = $1', [req.params.id]);
     res.json({ message: 'Supprimé' });
@@ -200,7 +536,7 @@ app.delete('/api/payment/transactions/:id', requireAuth, async (req, res) => {
 });
 
 // ─── Terminals ────────────────────────────────────────────────────────────────
-app.get('/api/terminals', requireAuth, async (req, res) => {
+app.get('/api/terminals', requireAuth, requirePermission(PERMISSIONS.VIEW_TERMINALS), async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM terminals ORDER BY created_at DESC');
     res.json({ items: rows, total: rows.length });
@@ -210,7 +546,7 @@ app.get('/api/terminals', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/terminals/:id', requireAuth, async (req, res) => {
+app.get('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.VIEW_TERMINALS), async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM terminals WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ message: 'Terminal introuvable' });
@@ -221,7 +557,7 @@ app.get('/api/terminals/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/terminals', requireAuth, async (req, res) => {
+app.post('/api/terminals', requireAuth, requirePermission(PERMISSIONS.MANAGE_TERMINALS), async (req, res) => {
   const { name, serial_number, status, location, model } = req.body;
   try {
     const { rows } = await pool.query(
@@ -235,7 +571,7 @@ app.post('/api/terminals', requireAuth, async (req, res) => {
   }
 });
 
-app.put('/api/terminals/:id', requireAuth, async (req, res) => {
+app.put('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.MANAGE_TERMINALS), async (req, res) => {
   const { name, status, location, model } = req.body;
   try {
     const { rows } = await pool.query(
@@ -250,7 +586,7 @@ app.put('/api/terminals/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/terminals/:id', requireAuth, async (req, res) => {
+app.delete('/api/terminals/:id', requireAuth, requirePermission(PERMISSIONS.MANAGE_TERMINALS), async (req, res) => {
   try {
     await pool.query('DELETE FROM terminals WHERE id = $1', [req.params.id]);
     res.json({ message: 'Supprimé' });
@@ -261,7 +597,7 @@ app.delete('/api/terminals/:id', requireAuth, async (req, res) => {
 });
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-app.get('/api/dashboard/overview', requireAuth, async (req, res) => {
+app.get('/api/dashboard/overview', requireAuth, requirePermission(PERMISSIONS.VIEW_PAYMENT_DATA), async (req, res) => {
   try {
     const txResult = await pool.query(`
       SELECT
@@ -287,7 +623,7 @@ app.get('/api/dashboard/overview', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
+app.get('/api/dashboard/stats', requireAuth, requirePermission(PERMISSIONS.GENERATE_REPORTS), async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT
@@ -306,7 +642,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/dashboard/recent-activity', requireAuth, async (req, res) => {
+app.get('/api/dashboard/recent-activity', requireAuth, requirePermission(PERMISSIONS.VIEW_PAYMENT_DATA), async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT * FROM transactions ORDER BY created_at DESC LIMIT 10'
@@ -328,6 +664,16 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
-});
+async function start() {
+  try {
+    await ensureSchema();
+    app.listen(PORT, () => {
+      console.log(`Backend running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Failed to initialize backend schema', err);
+    process.exit(1);
+  }
+}
+
+start();

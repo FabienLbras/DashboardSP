@@ -16,9 +16,6 @@ const Header: React.FC<HeaderProps> = ({ onClick, onToggle }) => {
           <button className="lg:hidden" onClick={onToggle}>
             ☰
           </button>
-          <button className="hidden lg:block" onClick={onClick}>
-            ✕
-          </button>
         </div>
 
         <div className="flex items-center gap-4">

@@ -32,6 +32,7 @@ export interface AuthResponse {
   email: string;
   name: string;
   role: string;
+  must_change_password?: boolean;
   usedBackupCode?: boolean;
 }
 
@@ -53,6 +54,7 @@ export interface User {
   email: string;
   name: string;
   role: string;
+  must_change_password?: boolean;
 }
 
 // Authentication service
@@ -147,11 +149,21 @@ export class AuthService {
   }
 
   // Store authentication data
+  static async changePassword(newPassword: string): Promise<AuthResponse> {
+    const token = this.getAccessToken();
+    const response = await authAPI.post<AuthResponse>('/auth/change-password', { newPassword }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    this.storeAuthData(response.data);
+    return response.data;
+  }
+
   private static storeAuthData(authData: AuthResponse): void {
     const user: User = {
       email: authData.email,
       name: authData.name,
       role: authData.role,
+      must_change_password: authData.must_change_password || false,
     };
 
     // Store in localStorage (persistent) and sessionStorage (session-based)

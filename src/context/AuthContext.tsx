@@ -14,6 +14,7 @@ interface AuthContextType {
   verifyMfa: (code: string) => Promise<{ usedBackupCode?: boolean }>;
   clearMfaChallenge: () => void;
   logout: () => void;
+  refreshUser: (updatedUser: User) => void;
   isAuthenticated: boolean;
 }
 
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType>({
   verifyMfa: async () => ({}),
   clearMfaChallenge: () => {},
   logout: () => {},
+  refreshUser: () => {},
   isAuthenticated: false
 });
 
@@ -51,6 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: authResponse.email,
         name: authResponse.name,
         role: authResponse.role,
+        must_change_password: authResponse.must_change_password || false,
       };
       setPendingMfaChallenge(null);
       setUser(userData);
@@ -59,6 +62,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Login failed:', error);
       throw error;
     }
+  };
+
+  const refreshUser = (updatedUser: User) => {
+    setUser(updatedUser);
   };
 
   const verifyMfa = async (code: string) => {
@@ -150,15 +157,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
+    <AuthContext.Provider value={{
+      user,
+      loading,
       pendingMfaChallenge,
-      login, 
+      login,
       verifyMfa,
       clearMfaChallenge,
-      logout, 
-      isAuthenticated: !!user 
+      logout,
+      refreshUser,
+      isAuthenticated: !!user
     }}>
       {children}
     </AuthContext.Provider>

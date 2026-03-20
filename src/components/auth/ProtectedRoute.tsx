@@ -17,5 +17,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  return user ? <>{children}</> : <Navigate to="/signin" replace />;
+  if (!user) return <Navigate to="/signin" replace />;
+  if (user.must_change_password) return <Navigate to="/change-password" replace />;
+  return <>{children}</>;
 }

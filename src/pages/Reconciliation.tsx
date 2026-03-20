@@ -307,7 +307,7 @@ export default function Reconciliation() {
             <div className="text-2xl font-bold text-blue-600">
               ${totalDifference.toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">{t("acrossRecords", { count: unmatched + pending })}</p>
+            <p className="text-xs text-muted-foreground">{t("acrossRecords")}</p>
           </CardContent>
         </Card>
       </div>
@@ -335,7 +335,7 @@ export default function Reconciliation() {
                 <SelectValue placeholder={t("status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("allStatuses")}</SelectItem>
+                <SelectItem value="all">{t("allStatusesRec")}</SelectItem>
                 <SelectItem value="matched">{t("matched")}</SelectItem>
                 <SelectItem value="unmatched">{t("unmatched")}</SelectItem>
                 <SelectItem value="pending">{t("pending")}</SelectItem>
@@ -346,7 +346,7 @@ export default function Reconciliation() {
                 <SelectValue placeholder={t("terminals")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("allTerminals")}</SelectItem>
+                <SelectItem value="all">{t("allTerminalsRec")}</SelectItem>
                 {terminals.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}

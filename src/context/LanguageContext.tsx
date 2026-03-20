@@ -124,7 +124,7 @@ const translations = {
     terminalsFound: "terminal(s) found",
     terminalId: "Terminal ID",
     todayTransactions: "Today's Transactions",
-    todayRevenue: "Today's Revenue",
+    terminalTodayRevenue: "Today's Revenue",
     searchTerminal: "Search by ID, name or location...",
 
     // Customers
@@ -333,8 +333,8 @@ const translations = {
     totalDiscrepancy: "Total Discrepancy",
     acrossRecords: "Across records",
     searchReconciliation: "Search by ID, transaction ID or terminal...",
-    allStatuses: "All Statuses",
-    allTerminals: "All Terminals",
+    allStatusesRec: "All Statuses",
+    allTerminalsRec: "All Terminals",
     reconciliationRecords: "Reconciliation Records",
     recordsFound: "records found",
     recId: "Rec. ID",
@@ -487,7 +487,7 @@ const translations = {
     terminalsFound: "terminal(s) trouvé(s)",
     terminalId: "ID Terminal",
     todayTransactions: "Transactions du jour",
-    todayRevenue: "Revenus du jour",
+    terminalTodayRevenue: "Revenus du jour",
     searchTerminal: "Rechercher par ID, nom ou emplacement...",
 
     // Customers
@@ -696,8 +696,8 @@ const translations = {
     totalDiscrepancy: "Écart total",
     acrossRecords: "Sur tous les enregistrements",
     searchReconciliation: "Rechercher par ID, ID de transaction ou terminal...",
-    allStatuses: "Tous les statuts",
-    allTerminals: "Tous les terminaux",
+    allStatusesRec: "Tous les statuts",
+    allTerminalsRec: "Tous les terminaux",
     reconciliationRecords: "Enregistrements de réconciliation",
     recordsFound: "enregistrements trouvés",
     recId: "ID Réc.",

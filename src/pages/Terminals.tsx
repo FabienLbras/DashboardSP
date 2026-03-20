@@ -20,7 +20,7 @@ import { TerminalService, Terminal } from "../services/terminalService";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
-type TerminalForm = { name: string; serial_number: string; location: string; model: string; status: string };
+type TerminalForm = { name: string; serial_number: string; location: string; model: string; status: "active" | "inactive" };
 const emptyForm: TerminalForm = { name: "", serial_number: "", location: "", model: "", status: "active" };
 
 export default function Terminals() {
@@ -370,7 +370,7 @@ export default function Terminals() {
               </div>
               <div className="space-y-1">
                 <Label>{t("status")}</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as "active" | "inactive" })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">{t("active")}</SelectItem>

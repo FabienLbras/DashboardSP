@@ -314,6 +314,12 @@ async function ensureSchema() {
     )
   `);
 
+  // ── Force password change on first login ─────────────────────────────────────
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE
+  `);
+
   // ── Password reset tokens ────────────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -376,6 +382,7 @@ function makeTokens(user) {
     name: user.name,
     role: normalizeRole(user.role),
     customer_id: user.customer_id || null,
+    must_change_password: user.must_change_password || false,
   };
   const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   const refreshToken = jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_EXPIRES_IN });
@@ -448,10 +455,43 @@ app.post('/api/auth/login', async (req, res) => {
       email: user.email,
       name: user.name,
       role: normalizeRole(user.role),
+      must_change_password: user.must_change_password || false,
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ── Change password (force on first login) ────────────────────────────────────
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters' });
+  }
+  try {
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2',
+      [hash, req.user.id]
+    );
+    // Return fresh tokens with must_change_password = false
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    const { accessToken, refreshToken } = makeTokens(user);
+    res.json({
+      accessToken,
+      refreshToken,
+      tokenType: 'Bearer',
+      expiresIn: 3600,
+      email: user.email,
+      name: user.name,
+      role: normalizeRole(user.role),
+      must_change_password: false,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -488,7 +528,7 @@ app.post('/api/auth/mfa/login-verify', async (req, res) => {
 
     if (totpValid) {
       const { accessToken, refreshToken } = makeTokens(user);
-      return res.json({ accessToken, refreshToken, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role) });
+      return res.json({ accessToken, refreshToken, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role), must_change_password: user.must_change_password || false });
     }
 
     // Try backup code
@@ -505,7 +545,7 @@ app.post('/api/auth/mfa/login-verify', async (req, res) => {
           [row.id]
         );
         const { accessToken, refreshToken } = makeTokens(user);
-        return res.json({ accessToken, refreshToken, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role), usedBackupCode: true });
+        return res.json({ accessToken, refreshToken, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role), must_change_password: user.must_change_password || false, usedBackupCode: true });
       }
     }
 
@@ -525,7 +565,7 @@ app.post('/api/auth/refresh', async (req, res) => {
     const user = rows[0];
     if (!user) return res.status(401).json({ message: 'Utilisateur introuvable' });
     const tokens = makeTokens(user);
-    res.json({ ...tokens, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role) });
+    res.json({ ...tokens, tokenType: 'Bearer', expiresIn: 3600, email: user.email, name: user.name, role: normalizeRole(user.role), must_change_password: user.must_change_password || false });
   } catch {
     res.status(401).json({ message: 'Refresh token invalide' });
   }
@@ -1610,7 +1650,7 @@ app.post('/api/admin/sp-admins', requireAuth, requireSuperAdmin, async (req, res
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
-      `INSERT INTO users (name, email, password_hash, role, customer_id) VALUES ($1,$2,$3,$4,NULL) RETURNING id, name, email, role, created_at`,
+      `INSERT INTO users (name, email, password_hash, role, customer_id, must_change_password) VALUES ($1,$2,$3,$4,NULL,TRUE) RETURNING id, name, email, role, created_at`,
       [name, email, hash, assignedRole]
     );
     const inviteUrl = `${APP_URL}/signin`;

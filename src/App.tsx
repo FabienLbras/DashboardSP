@@ -23,6 +23,7 @@ import CustomerEdit from "./pages/CustomerEdit";
 import CustomerNew from "./pages/CustomerNew";
 import Reports from "./pages/Reports";
 import SpAdmins from "./pages/SpAdmins";
+import ChangePassword from "./pages/AuthPages/ChangePassword";
 import { APP_PERMISSIONS } from "./lib/permissions";
 import { LanguageProvider } from "./context/LanguageContext";
 
@@ -50,6 +51,7 @@ export default function App() {
           }
         />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/change-password" element={<ChangePassword />} />
         <Route
           path="/"
           element={

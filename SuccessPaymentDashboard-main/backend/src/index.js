@@ -1592,8 +1592,8 @@ app.get('/api/admin/terminals/:id/key', requireAuth, requireSuperAdmin, async (r
 app.get('/api/admin/sp-admins', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, email, role, created_at FROM users WHERE role = $1 ORDER BY created_at DESC`,
-      [SP_ADMIN_ROLE]
+      `SELECT id, name, email, role, created_at FROM users WHERE role IN ($1, $2) ORDER BY created_at DESC`,
+      [SP_ADMIN_ROLE, SUPER_ADMIN_ROLE]
     );
     res.json({ items: rows, total: rows.length });
   } catch (err) {
@@ -1603,14 +1603,15 @@ app.get('/api/admin/sp-admins', requireAuth, requireSuperAdmin, async (req, res)
 });
 
 app.post('/api/admin/sp-admins', requireAuth, requireSuperAdmin, async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'name, email and password required' });
   if (password.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters' });
+  const assignedRole = role === SUPER_ADMIN_ROLE ? SUPER_ADMIN_ROLE : SP_ADMIN_ROLE;
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
       `INSERT INTO users (name, email, password_hash, role, customer_id) VALUES ($1,$2,$3,$4,NULL) RETURNING id, name, email, role, created_at`,
-      [name, email, hash, SP_ADMIN_ROLE]
+      [name, email, hash, assignedRole]
     );
     const inviteUrl = `${APP_URL}/signin`;
     sendEmail({
@@ -1630,7 +1631,7 @@ app.delete('/api/admin/sp-admins/:id', requireAuth, requireSuperAdmin, async (re
   try {
     const { rows } = await pool.query('SELECT role FROM users WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ message: 'User not found' });
-    if (rows[0].role !== SP_ADMIN_ROLE) return res.status(403).json({ message: 'Can only delete sp_admin users here' });
+    if (![SP_ADMIN_ROLE, SUPER_ADMIN_ROLE].includes(rows[0].role)) return res.status(403).json({ message: 'Can only delete platform admin users here' });
     await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
     res.json({ message: 'Deleted' });
   } catch (err) {

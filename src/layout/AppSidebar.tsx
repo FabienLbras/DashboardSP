@@ -108,8 +108,13 @@ const AppSidebar: React.FC = () => {
     });
   };
 
+  const isSpAdminOrAbove = (role?: string | null) => {
+    const r = role?.toLowerCase();
+    return r === "super_admin" || r === "sp_admin";
+  };
+
   const filteredNavItems = navItems.filter((item) => {
-    if (item.path === "/customers") return isSuperAdmin(user?.role);
+    if (item.path === "/customers") return isSpAdminOrAbove(user?.role);
     if (item.path === "/sp-admins") return isSuperAdmin(user?.role);
     if (item.path === "/terminals") return hasPermission(user?.role, APP_PERMISSIONS.VIEW_TERMINALS);
     if (item.path === "/invoices") return hasPermission(user?.role, APP_PERMISSIONS.ACCESS_ECOMMERCE_DATA);

@@ -10,8 +10,13 @@ import { ShieldCheck, Plus, Trash2, Loader2, AlertCircle, Eye, EyeOff } from "lu
 import { SpAdminService, SpAdmin } from "../services/spAdminService";
 import { useToast } from "../hooks/useToast";
 
-type Form = { name: string; email: string; password: string };
-const emptyForm: Form = { name: "", email: "", password: "" };
+type Form = { name: string; email: string; password: string; role: string };
+const emptyForm: Form = { name: "", email: "", password: "", role: "sp_admin" };
+
+const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+  super_admin: { label: "Super Admin", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
+  sp_admin:    { label: "Admin",       color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+};
 
 export default function SpAdmins() {
   const { toast } = useToast();
@@ -60,7 +65,7 @@ export default function SpAdmins() {
     setSaving(true);
     try {
       await SpAdminService.create(form);
-      toast({ title: "SP Admin created", description: `${form.name} has been invited by email.` });
+      toast({ title: "Admin created", description: `${form.name} has been invited by email.` });
       setDialogOpen(false);
       load();
     } catch (e: any) {
@@ -85,6 +90,9 @@ export default function SpAdmins() {
     }
   };
 
+  const superAdmins = admins.filter(a => a.role === "super_admin");
+  const spAdmins    = admins.filter(a => a.role === "sp_admin");
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -92,35 +100,46 @@ export default function SpAdmins() {
         <div>
           <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
             <ShieldCheck className="h-8 w-8 text-blue-600" />
-            SP Admins
+            Platform Admins
           </h1>
           <p className="text-muted-foreground">Manage Success Payment platform administrators</p>
         </div>
         <Button onClick={openCreate} className="text-white bg-blue-700 hover:bg-blue-800">
           <Plus className="h-4 w-4 mr-2" />
-          Add SP Admin
+          Add Admin
         </Button>
       </div>
 
       {/* Summary */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-blue-500" />Total SP Admins
+              <ShieldCheck className="w-4 h-4 text-purple-500" />Super Admins
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{admins.length}</div>
+            <div className="text-2xl font-bold text-purple-600">{superAdmins.length}</div>
           </CardContent>
         </Card>
-        <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-blue-500" />Admins
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{spAdmins.length}</div>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-300">Permissions</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-amber-700 dark:text-amber-300">
-              SP Admins have full platform access <strong>except</strong> creating other users.
+              <strong>Super Admin</strong> — full access + user management.<br />
+              <strong>Admin</strong> — full access except creating other users.
             </p>
           </CardContent>
         </Card>
@@ -129,7 +148,7 @@ export default function SpAdmins() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>SP Admin List</CardTitle>
+          <CardTitle>Admin List</CardTitle>
           <CardDescription>{admins.length} platform administrator(s)</CardDescription>
         </CardHeader>
         <CardContent>
@@ -145,7 +164,7 @@ export default function SpAdmins() {
             </div>
           ) : admins.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              No SP admins yet. Create the first one!
+              No admins yet. Create the first one!
             </div>
           ) : (
             <div className="rounded-md border overflow-x-auto">
@@ -160,30 +179,31 @@ export default function SpAdmins() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {admins.map((a) => (
-                    <TableRow key={a.id}>
-                      <TableCell className="font-semibold">{a.name}</TableCell>
-                      <TableCell>{a.email}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                          sp_admin
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {new Date(a.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => setDeleteTarget(a)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {admins.map((a) => {
+                    const roleInfo = ROLE_LABELS[a.role] || { label: a.role, color: "bg-gray-100 text-gray-800" };
+                    return (
+                      <TableRow key={a.id}>
+                        <TableCell className="font-semibold">{a.name}</TableCell>
+                        <TableCell>{a.email}</TableCell>
+                        <TableCell>
+                          <Badge className={roleInfo.color}>{roleInfo.label}</Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(a.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setDeleteTarget(a)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -195,13 +215,24 @@ export default function SpAdmins() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>New SP Admin</DialogTitle>
+            <DialogTitle>New Platform Admin</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave}>
             <div className="space-y-4 py-2">
               {formError && (
                 <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded-md">{formError}</div>
               )}
+              <div className="space-y-1">
+                <Label>Role *</Label>
+                <select
+                  className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                >
+                  <option value="sp_admin">Admin — full access, cannot manage users</option>
+                  <option value="super_admin">Super Admin — full access + user management</option>
+                </select>
+              </div>
               <div className="space-y-1">
                 <Label>Full Name *</Label>
                 <Input
@@ -247,7 +278,7 @@ export default function SpAdmins() {
             <DialogFooter className="mt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Cancel</Button>
               <Button type="submit" disabled={saving}>
-                {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Creating...</> : "Create SP Admin"}
+                {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Creating...</> : "Create Admin"}
               </Button>
             </DialogFooter>
           </form>
@@ -258,7 +289,7 @@ export default function SpAdmins() {
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete SP Admin</DialogTitle>
+            <DialogTitle>Delete Admin</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground py-2">
             Are you sure you want to delete <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email})?

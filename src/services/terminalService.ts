@@ -40,7 +40,7 @@ export const TerminalService = {
     return data;
   },
 
-  async update(id: number, payload: Partial<Terminal>): Promise<Terminal> {
+  async update(id: number, payload: { name?: string; serial_number?: string; status?: 'active' | 'inactive'; location?: string; model?: string }): Promise<Terminal> {
     const { data } = await api.put(`/terminals/${id}`, payload);
     return data;
   },

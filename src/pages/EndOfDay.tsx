@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -36,6 +36,7 @@ import {
   Activity,
   AlertTriangle,
   X,
+  MoreVertical,
 } from "lucide-react";
 import { EodService, type EodReport } from "../services/eodService";
 
@@ -53,6 +54,16 @@ export default function EndOfDay() {
   const [dismissedAlerts, setDismissedAlerts] = useState<string[]>([]);
   const [reports, setReports] = useState<EodReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) setActionsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   useEffect(() => {
     const params: Record<string, number> = {};
@@ -198,20 +209,44 @@ export default function EndOfDay() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
-            <CalendarClock className="h-8 w-8 text-blue-600" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-2">
+            <CalendarClock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
             {t("endOfDay")}
           </h1>
-          <p className="text-muted-foreground">
-            {t("dailySummaries")}
-          </p>
+          <p className="text-muted-foreground text-sm hidden sm:block">{t("dailySummaries")}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCSV}>
+
+        {/* Desktop: bouton direct */}
+        <Button variant="outline" size="sm" onClick={handleExportCSV} className="hidden sm:flex flex-shrink-0">
           <Download className="h-4 w-4 mr-2" />
           {t("exportCsv")}
         </Button>
+
+        {/* Mobile: bouton Actions dropdown */}
+        <div className="relative sm:hidden flex-shrink-0" ref={actionsRef}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setActionsOpen((v) => !v)}
+            className="flex items-center gap-1"
+          >
+            <MoreVertical className="h-4 w-4" />
+            Actions
+          </Button>
+          {actionsOpen && (
+            <div className="absolute right-0 mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-lg z-50 dark:border-gray-700 dark:bg-gray-900">
+              <button
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
+                onClick={() => { handleExportCSV(); setActionsOpen(false); }}
+              >
+                <Download className="h-4 w-4" />
+                {t("exportCsv")}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Missing EOD Alerts */}

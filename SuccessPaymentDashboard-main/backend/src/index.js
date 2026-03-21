@@ -65,38 +65,99 @@ function emailBase(title, content) {
 </html>`;
 }
 
-function invitationEmail({ name, email, password, customerName = 'Success Payment', propertyRoles = [], loginUrl }) {
+const EMAIL_I18N = {
+  fr: {
+    invitation: {
+      subject: 'Vous avez été invité sur Success Payment',
+      title: (customerName) => `Bienvenue sur ${customerName} !`,
+      intro: (name) => `Bonjour ${name}, votre compte a été créé sur la plateforme Success Payment. Voici vos identifiants de connexion :`,
+      emailLabel: 'Email',
+      passwordLabel: 'Mot de passe',
+      accessTitle: 'Vos accès par établissement :',
+      noProperties: 'Aucun établissement assigné pour l\'instant',
+      warning: '⚠️ <strong>Important :</strong> Veuillez changer votre mot de passe après votre première connexion et activer l\'authentification à deux facteurs.',
+      cta: 'Accéder au tableau de bord',
+    },
+    roleChange: {
+      subject: 'Votre rôle Success Payment a été mis à jour',
+      title: 'Mise à jour de votre rôle',
+      body: (name, roleLabel) => `Bonjour <strong>${name}</strong>,<br><br>Votre rôle sur la plateforme Success Payment a été mis à jour vers <strong>${roleLabel}</strong>.`,
+      cta: 'Se connecter',
+      footer: 'Si vous n\'attendiez pas ce changement, veuillez contacter votre administrateur.',
+    },
+  },
+  en: {
+    invitation: {
+      subject: 'You\'ve been invited to Success Payment',
+      title: (customerName) => `Welcome to ${customerName}!`,
+      intro: (name) => `Hi ${name}, your account has been created on the Success Payment platform. Here are your login credentials:`,
+      emailLabel: 'Email',
+      passwordLabel: 'Password',
+      accessTitle: 'Your property access:',
+      noProperties: 'No properties assigned yet',
+      warning: '⚠️ <strong>Important:</strong> Please change your password after your first login and enable two-factor authentication for security.',
+      cta: 'Sign In to Dashboard',
+    },
+    roleChange: {
+      subject: 'Your Success Payment role has been updated',
+      title: 'Role update',
+      body: (name, roleLabel) => `Hi <strong>${name}</strong>,<br><br>Your account role on the Success Payment platform has been updated to <strong>${roleLabel}</strong>.`,
+      cta: 'Sign In',
+      footer: 'If you did not expect this change, please contact your administrator.',
+    },
+  },
+};
+
+function invitationEmail({ name, email, password, customerName = 'Success Payment', propertyRoles = [], loginUrl, lang = 'fr' }) {
+  const i18n = EMAIL_I18N[lang] || EMAIL_I18N.fr;
+  const t = i18n.invitation;
   const rolesHtml = propertyRoles.length > 0
     ? propertyRoles.map(pr => `<li style="margin:4px 0;color:#475569;">${pr.property_name} <span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;">${pr.role.replace(/_/g, ' ')}</span></li>`).join('')
-    : '<li style="color:#94a3b8;">No properties assigned yet</li>';
+    : `<li style="color:#94a3b8;">${t.noProperties}</li>`;
 
-  return emailBase('You\'ve been invited to Success Payment', `
-    <h2 style="margin:0 0 8px;color:#0f172a;font-size:20px;font-weight:700;">Welcome to ${customerName}!</h2>
-    <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">Hi ${name}, your account has been created on the Success Payment platform. Here are your login credentials:</p>
+  return emailBase(t.subject, `
+    <h2 style="margin:0 0 8px;color:#0f172a;font-size:20px;font-weight:700;">${t.title(customerName)}</h2>
+    <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">${t.intro(name)}</p>
 
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          <td style="padding:6px 0;color:#64748b;font-size:13px;width:100px;">Email</td>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;width:100px;">${t.emailLabel}</td>
           <td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600;">${email}</td>
         </tr>
         <tr>
-          <td style="padding:6px 0;color:#64748b;font-size:13px;">Password</td>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;">${t.passwordLabel}</td>
           <td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600;font-family:monospace;">${password}</td>
         </tr>
       </table>
     </div>
 
-    <h3 style="margin:0 0 10px;color:#0f172a;font-size:14px;font-weight:600;">Your property access:</h3>
+    <h3 style="margin:0 0 10px;color:#0f172a;font-size:14px;font-weight:600;">${t.accessTitle}</h3>
     <ul style="margin:0 0 28px;padding-left:20px;">${rolesHtml}</ul>
 
     <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px 18px;margin-bottom:28px;">
-      <p style="margin:0;color:#92400e;font-size:13px;line-height:1.5;">⚠️ <strong>Important:</strong> Please change your password after your first login and enable two-factor authentication for security.</p>
+      <p style="margin:0;color:#92400e;font-size:13px;line-height:1.5;">${t.warning}</p>
     </div>
 
     <div style="text-align:center;">
-      <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">Sign In to Dashboard</a>
+      <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.2px;">${t.cta}</a>
     </div>
+  `);
+}
+
+function roleChangeEmail({ name, email, role, loginUrl, lang = 'fr' }) {
+  const i18n = EMAIL_I18N[lang] || EMAIL_I18N.fr;
+  const t = i18n.roleChange;
+  const roleLabel = role === 'super_admin'
+    ? (lang === 'fr' ? 'Super Admin' : 'Super Admin')
+    : (lang === 'fr' ? 'Admin' : 'Admin');
+  return emailBase(t.subject, `
+    <h2 style="margin:0 0 16px;color:#0f172a;font-size:20px;font-weight:700;">${t.title}</h2>
+    <p style="margin:0 0 24px;color:#64748b;font-size:15px;line-height:1.6;">${t.body(name, roleLabel)}</p>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;">${t.cta}</a>
+    </div>
+    <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">${t.footer}</p>
   `);
 }
 
@@ -334,6 +395,12 @@ async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS property_id INTEGER REFERENCES properties(id) ON DELETE SET NULL
   `);
 
+  // ── UI language preference ────────────────────────────────────────────────────
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS lang VARCHAR(5) DEFAULT 'fr'
+  `);
+
   // ── Password reset tokens ────────────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -489,6 +556,19 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// ── Save language preference ──────────────────────────────────────────────────
+app.patch('/api/auth/lang', requireAuth, async (req, res) => {
+  const { lang } = req.body;
+  if (!['fr', 'en'].includes(lang)) return res.status(400).json({ message: 'lang must be fr or en' });
+  try {
+    await pool.query('UPDATE users SET lang = $1 WHERE id = $2', [lang, req.user.id]);
+    res.json({ lang });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -1694,21 +1774,23 @@ app.get('/api/admin/sp-admins', requireAuth, requireSuperAdmin, async (req, res)
 });
 
 app.post('/api/admin/sp-admins', requireAuth, requireSuperAdmin, async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, lang } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'name, email and password required' });
   if (password.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters' });
   const assignedRole = role === SUPER_ADMIN_ROLE ? SUPER_ADMIN_ROLE : SP_ADMIN_ROLE;
+  const userLang = ['fr', 'en'].includes(lang) ? lang : 'fr';
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await pool.query(
-      `INSERT INTO users (name, email, password_hash, role, customer_id, must_change_password) VALUES ($1,$2,$3,$4,NULL,TRUE) RETURNING id, name, email, role, created_at`,
-      [name, email, hash, assignedRole]
+      `INSERT INTO users (name, email, password_hash, role, customer_id, must_change_password, lang) VALUES ($1,$2,$3,$4,NULL,TRUE,$5) RETURNING id, name, email, role, created_at`,
+      [name, email, hash, assignedRole, userLang]
     );
     const inviteUrl = `${APP_URL}/signin`;
+    const i18n = EMAIL_I18N[userLang] || EMAIL_I18N.fr;
     sendEmail({
       to: email,
-      subject: 'Your Success Payment admin account',
-      html: invitationEmail({ name, email, password, loginUrl: inviteUrl }),
+      subject: i18n.invitation.subject,
+      html: invitationEmail({ name, email, password, loginUrl: inviteUrl, lang: userLang }),
     });
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -1741,7 +1823,7 @@ app.patch('/api/admin/sp-admins/:id/role', requireAuth, requireSuperAdmin, async
     return res.status(403).json({ message: 'Cannot change your own role' });
   }
   try {
-    const { rows } = await pool.query('SELECT name, email, role FROM users WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query('SELECT name, email, role, lang FROM users WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ message: 'User not found' });
     if (![SUPER_ADMIN_ROLE, SP_ADMIN_ROLE].includes(rows[0].role)) {
       return res.status(403).json({ message: 'Can only change role of platform admin users' });
@@ -1751,19 +1833,12 @@ app.patch('/api/admin/sp-admins/:id/role', requireAuth, requireSuperAdmin, async
       [role, req.params.id]
     );
     const user = updated[0];
-    const roleLabel = role === SUPER_ADMIN_ROLE ? 'Super Admin' : 'Admin';
+    const userLang = rows[0].lang || 'fr';
+    const i18n = EMAIL_I18N[userLang] || EMAIL_I18N.fr;
     sendEmail({
       to: user.email,
-      subject: `Your Success Payment role has been updated`,
-      html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-          <h2 style="color:#1d4ed8">Role update</h2>
-          <p>Hi <strong>${user.name}</strong>,</p>
-          <p>Your account role on the Success Payment platform has been updated to <strong>${roleLabel}</strong>.</p>
-          <p>You can sign in at <a href="${APP_URL}/signin">${APP_URL}/signin</a></p>
-          <p style="color:#6b7280;font-size:12px">If you did not expect this change, please contact your administrator.</p>
-        </div>
-      `,
+      subject: i18n.roleChange.subject,
+      html: roleChangeEmail({ name: user.name, email: user.email, role, loginUrl: `${APP_URL}/signin`, lang: userLang }),
     });
     res.json(user);
   } catch (err) {

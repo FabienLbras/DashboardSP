@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { ShieldCheck, Plus, Trash2, Loader2, AlertCircle, Eye, EyeOff, RefreshCw, Copy } from "lucide-react";
 import { SpAdminService, SpAdmin } from "../services/spAdminService";
 import { useToast } from "../hooks/useToast";
+import { useLanguage } from "../context/LanguageContext";
 
 type Form = { name: string; email: string; password: string; role: string };
 
@@ -34,6 +35,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
 
 export default function SpAdmins() {
   const { toast } = useToast();
+  const { lang } = useLanguage();
   const [admins, setAdmins] = useState<SpAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,7 +81,7 @@ export default function SpAdmins() {
     }
     setSaving(true);
     try {
-      await SpAdminService.create(form);
+      await SpAdminService.create({ ...form, lang });
       toast({ title: "Admin created", description: `${form.name} has been invited by email.` });
       setDialogOpen(false);
       setForm(emptyForm());

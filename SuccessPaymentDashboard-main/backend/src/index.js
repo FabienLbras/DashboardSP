@@ -492,13 +492,19 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// ── Change password (force on first login) ────────────────────────────────────
+// ── Change password (force on first login OR voluntary from profile) ──────────
 app.post('/api/auth/change-password', requireAuth, async (req, res) => {
-  const { newPassword } = req.body;
+  const { newPassword, currentPassword } = req.body;
   if (!newPassword || newPassword.length < 8) {
     return res.status(400).json({ message: 'Password must be at least 8 characters' });
   }
   try {
+    // If currentPassword provided (voluntary change), verify it first
+    if (currentPassword) {
+      const { rows: userRows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+      const valid = await bcrypt.compare(currentPassword, userRows[0]?.password_hash);
+      if (!valid) return res.status(401).json({ message: 'Current password is incorrect' });
+    }
     const hash = await bcrypt.hash(newPassword, 10);
     await pool.query(
       'UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2',

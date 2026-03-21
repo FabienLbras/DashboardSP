@@ -149,9 +149,12 @@ export class AuthService {
   }
 
   // Store authentication data
-  static async changePassword(newPassword: string): Promise<AuthResponse> {
+  static async changePassword(newPasswordOrCurrent: string, newPassword?: string): Promise<AuthResponse> {
     const token = this.getAccessToken();
-    const response = await authAPI.post<AuthResponse>('/auth/change-password', { newPassword }, {
+    const body = newPassword
+      ? { currentPassword: newPasswordOrCurrent, newPassword }
+      : { newPassword: newPasswordOrCurrent };
+    const response = await authAPI.post<AuthResponse>('/auth/change-password', body, {
       headers: { Authorization: `Bearer ${token}` }
     });
     this.storeAuthData(response.data);

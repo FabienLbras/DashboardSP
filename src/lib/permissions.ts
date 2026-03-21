@@ -1,5 +1,6 @@
 export const APP_ROLES = {
   SUPER_ADMIN: "super_admin",
+  SP_ADMIN: "sp_admin",
   HOTEL_MANAGER: "hotel_manager",
   FINANCIAL_MANAGER: "financial_manager",
   FRONT_OFFICE_MANAGER: "front_office_manager",
@@ -29,8 +30,16 @@ export type AppPermission = (typeof APP_PERMISSIONS)[keyof typeof APP_PERMISSION
 
 const rolePermissions: Record<string, AppPermission[]> = {
   [APP_ROLES.SUPER_ADMIN]: Object.values(APP_PERMISSIONS),
+  // hotel_manager = customer super-admin: full access + manage users for their customer
   [APP_ROLES.HOTEL_MANAGER]: Object.values(APP_PERMISSIONS),
-  [APP_ROLES.FINANCIAL_MANAGER]: Object.values(APP_PERMISSIONS),
+  // financial_manager: reports/transactions/EOD scoped to their property
+  [APP_ROLES.FINANCIAL_MANAGER]: [
+    APP_PERMISSIONS.VIEW_PAYMENT_DATA,
+    APP_PERMISSIONS.VIEW_TRANSACTIONS,
+    APP_PERMISSIONS.GENERATE_REPORTS,
+    APP_PERMISSIONS.EXPORT_REPORTS,
+    APP_PERMISSIONS.VIEW_EOD_REPORTS,
+  ],
   [APP_ROLES.ADMIN]: Object.values(APP_PERMISSIONS),
   [APP_ROLES.FRONT_OFFICE_MANAGER]: [
     APP_PERMISSIONS.VIEW_PAYMENT_DATA,
@@ -51,7 +60,9 @@ export function normalizeRole(role?: string | null): AppRole | null {
 
   const normalized = role.trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (normalized === "super_admin") return APP_ROLES.SUPER_ADMIN;
-  if (normalized === "hotel_manager" || normalized === "financial_manager") return normalized as AppRole;
+  if (normalized === "sp_admin") return APP_ROLES.SP_ADMIN;
+  if (normalized === "hotel_manager") return APP_ROLES.HOTEL_MANAGER;
+  if (normalized === "financial_manager") return APP_ROLES.FINANCIAL_MANAGER;
   if (normalized === "front_office_manager" || normalized === "frontoffice_manager") return APP_ROLES.FRONT_OFFICE_MANAGER;
   if (normalized === "front_office_operator" || normalized === "frontoffice_operator") return APP_ROLES.FRONT_OFFICE_OPERATOR;
   if (normalized === "admin") return APP_ROLES.ADMIN;
@@ -62,10 +73,21 @@ export function isSuperAdmin(role?: string | null): boolean {
   return normalizeRole(role) === APP_ROLES.SUPER_ADMIN;
 }
 
+export function isPlatformAdmin(role?: string | null): boolean {
+  const r = normalizeRole(role);
+  return r === APP_ROLES.SUPER_ADMIN || r === APP_ROLES.SP_ADMIN;
+}
+
+export function isHotelManager(role?: string | null): boolean {
+  return normalizeRole(role) === APP_ROLES.HOTEL_MANAGER;
+}
+
 export function getRoleLabel(role?: string | null): string {
   switch (normalizeRole(role)) {
     case APP_ROLES.SUPER_ADMIN:
       return "Super Admin";
+    case APP_ROLES.SP_ADMIN:
+      return "Admin";
     case APP_ROLES.HOTEL_MANAGER:
       return "Hotel Manager";
     case APP_ROLES.FINANCIAL_MANAGER:

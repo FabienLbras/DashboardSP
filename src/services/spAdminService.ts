@@ -32,4 +32,9 @@ export const SpAdminService = {
   async delete(id: number): Promise<void> {
     await api.delete(`/admin/sp-admins/${id}`);
   },
+
+  async changeRole(id: number, role: 'super_admin' | 'sp_admin'): Promise<SpAdmin> {
+    const { data } = await api.patch(`/admin/sp-admins/${id}/role`, { role });
+    return data;
+  },
 };

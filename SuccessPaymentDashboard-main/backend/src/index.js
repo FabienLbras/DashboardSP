@@ -142,8 +142,16 @@ const SP_ADMIN_ROLE = 'sp_admin';
 const ROLE_PERMISSIONS = {
   super_admin: ALL_PERMISSIONS,
   sp_admin: ALL_PERMISSIONS.filter(p => p !== PERMISSIONS.MANAGE_USERS),
+  // hotel_manager = customer super-admin: full access + manage users for their customer
   hotel_manager: ALL_PERMISSIONS,
-  financial_manager: ALL_PERMISSIONS,
+  // financial_manager: reports/transactions/EOD scoped to their property
+  financial_manager: [
+    PERMISSIONS.VIEW_PAYMENT_DATA,
+    PERMISSIONS.VIEW_TRANSACTIONS,
+    PERMISSIONS.GENERATE_REPORTS,
+    PERMISSIONS.EXPORT_REPORTS,
+    PERMISSIONS.VIEW_EOD_REPORTS,
+  ],
   admin: ALL_PERMISSIONS,
   front_office_manager: [
     PERMISSIONS.VIEW_PAYMENT_DATA,
@@ -320,6 +328,12 @@ async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE
   `);
 
+  // ── Primary property assignment for property-scoped roles ────────────────────
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS property_id INTEGER REFERENCES properties(id) ON DELETE SET NULL
+  `);
+
   // ── Password reset tokens ────────────────────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -382,6 +396,7 @@ function makeTokens(user) {
     name: user.name,
     role: normalizeRole(user.role),
     customer_id: user.customer_id || null,
+    property_id: user.property_id || null,
     must_change_password: user.must_change_password || false,
   };
   const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -390,27 +405,41 @@ function makeTokens(user) {
 }
 
 // ── Multi-tenant helper ───────────────────────────────────────────────────────
-// Returns { where: 'WHERE customer_id = $1', params: [id] } for non-admin users
-// or     { where: '', params: [] } if super_admin with no filter
-// or     { where: 'WHERE customer_id = $1', params: [cid] } if super_admin filtered
+// Roles that see ALL data within their customer (customer-scoped):
+//   super_admin, sp_admin, hotel_manager, admin
+// Roles that see only their assigned property (property-scoped):
+//   financial_manager, front_office_manager, front_office_operator
 function tenantFilter(req, paramOffset = 0) {
-  const isSA = normalizeRole(req.user.role) === SUPER_ADMIN_ROLE;
-  // super_admin can optionally filter via ?customer_id=X query param
+  const role = normalizeRole(req.user.role);
+  const isPlatformAdmin = role === SUPER_ADMIN_ROLE || role === SP_ADMIN_ROLE;
   const requestedCid = req.query.customer_id ? parseInt(req.query.customer_id) : null;
 
-  if (isSA) {
+  // Platform admins: full access, optional customer filter
+  if (isPlatformAdmin) {
     if (requestedCid) {
       return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [requestedCid] };
     }
     return { clause: '', params: [] };
   }
 
-  // Non-super-admin: must be scoped to their customer
   const cid = req.user.customer_id;
-  if (!cid) {
-    // No customer assigned → no data
-    return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [-1] };
+  const pid = req.user.property_id || null;
+
+  // hotel_manager & admin: all properties within their customer
+  if (role === 'hotel_manager' || role === 'admin') {
+    if (!cid) return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [-1] };
+    return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [cid] };
   }
+
+  // financial_manager, front_office_manager, front_office_operator: property-scoped
+  const propertyScoped = ['financial_manager', 'front_office_manager', 'front_office_operator'];
+  if (propertyScoped.includes(role)) {
+    if (!pid) return { clause: `WHERE property_id = $${paramOffset + 1}`, params: [-1] };
+    return { clause: `WHERE property_id = $${paramOffset + 1}`, params: [pid] };
+  }
+
+  // Fallback: customer scoped
+  if (!cid) return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [-1] };
   return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [cid] };
 }
 
@@ -1063,10 +1092,26 @@ app.get('/api/dashboard/recent-activity', requireAuth, requirePermission(PERMISS
 
 // ─── Super-admin guard ────────────────────────────────────────────────────────
 function requireSuperAdmin(req, res, next) {
-  if (normalizeRole(req.user.role) !== SUPER_ADMIN_ROLE) {
-    return res.status(403).json({ message: 'Super-admin access required' });
+  const role = normalizeRole(req.user.role);
+  if (role !== SUPER_ADMIN_ROLE && role !== SP_ADMIN_ROLE) {
+    return res.status(403).json({ message: 'Platform admin access required' });
   }
   next();
+}
+
+// hotel_manager can manage users/properties within their own customer
+function requireCustomerAdmin(req, res, next) {
+  const role = normalizeRole(req.user.role);
+  if (role === SUPER_ADMIN_ROLE || role === SP_ADMIN_ROLE) return next();
+  if (role === 'hotel_manager') {
+    // hotel_manager can only access their own customer
+    const cid = parseInt(req.params.id || req.params.cid);
+    if (cid && req.user.customer_id && cid !== req.user.customer_id) {
+      return res.status(403).json({ message: 'Access denied: not your customer' });
+    }
+    return next();
+  }
+  return res.status(403).json({ message: 'Admin access required' });
 }
 
 // ─── Password reset (forgot / reset) ─────────────────────────────────────────
@@ -1294,7 +1339,7 @@ app.delete('/api/admin/customers/:cid/properties/:pid', requireAuth, requireSupe
 });
 
 // ─── Users per customer (admin management) ────────────────────────────────────
-app.get('/api/admin/customers/:id/users', requireAuth, requireSuperAdmin, async (req, res) => {
+app.get('/api/admin/customers/:id/users', requireAuth, requireCustomerAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'SELECT id, email, name, role, created_at FROM users WHERE customer_id = $1 ORDER BY created_at',
@@ -1344,7 +1389,7 @@ async function syncPropertyRoles(client, userId, customerId, propertyRoles) {
   }
 }
 
-app.post('/api/admin/customers/:id/users', requireAuth, requireSuperAdmin, async (req, res) => {
+app.post('/api/admin/customers/:id/users', requireAuth, requireCustomerAdmin, async (req, res) => {
   const { name, email, password, property_roles } = req.body;
   if (!name || !email || !password) return res.status(400).json({ message: 'name, email and password required' });
   // Derive a default role from the first property role (for backwards compat)
@@ -1394,7 +1439,7 @@ app.post('/api/admin/customers/:id/users', requireAuth, requireSuperAdmin, async
   }
 });
 
-app.put('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmin, async (req, res) => {
+app.put('/api/admin/customers/:cid/users/:uid', requireAuth, requireCustomerAdmin, async (req, res) => {
   const { name, property_roles } = req.body;
   const client = await pool.connect();
   try {
@@ -1427,7 +1472,7 @@ app.put('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmin, 
   }
 });
 
-app.delete('/api/admin/customers/:cid/users/:uid', requireAuth, requireSuperAdmin, async (req, res) => {
+app.delete('/api/admin/customers/:cid/users/:uid', requireAuth, requireCustomerAdmin, async (req, res) => {
   try {
     await pool.query('DELETE FROM users WHERE id=$1 AND customer_id=$2', [req.params.uid, req.params.cid]);
     res.json({ message: 'Deleted' });
@@ -1677,6 +1722,32 @@ app.delete('/api/admin/sp-admins/:id', requireAuth, requireSuperAdmin, async (re
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Change role of a platform admin (super_admin ↔ sp_admin)
+app.patch('/api/admin/sp-admins/:id/role', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { role } = req.body;
+  if (![SUPER_ADMIN_ROLE, SP_ADMIN_ROLE].includes(role)) {
+    return res.status(400).json({ message: 'Role must be super_admin or sp_admin' });
+  }
+  if (parseInt(req.params.id) === req.user.id) {
+    return res.status(403).json({ message: 'Cannot change your own role' });
+  }
+  try {
+    const { rows } = await pool.query('SELECT role FROM users WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ message: 'User not found' });
+    if (![SUPER_ADMIN_ROLE, SP_ADMIN_ROLE].includes(rows[0].role)) {
+      return res.status(403).json({ message: 'Can only change role of platform admin users' });
+    }
+    const { rows: updated } = await pool.query(
+      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, name, email, role, created_at',
+      [role, req.params.id]
+    );
+    res.json(updated[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

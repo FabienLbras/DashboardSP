@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useCustomerFilter } from "../context/CustomerFilterContext";
@@ -30,8 +30,8 @@ import {
   RefreshCw,
   Download,
   DollarSign,
-  TrendingUp,
   GitMerge,
+  MoreVertical,
 } from "lucide-react";
 
 type ReconciliationStatus = "matched" | "unmatched" | "pending";
@@ -138,6 +138,16 @@ export default function Reconciliation() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [terminalFilter, setTerminalFilter] = useState("all");
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target as Node)) setActionsOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const filtered = mockReconciliation.filter((rec) => {
     const matchesSearch =
@@ -231,25 +241,47 @@ export default function Reconciliation() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-text-primary flex items-center gap-2">
-            <GitMerge className="h-8 w-8 text-blue-600" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-2">
+            <GitMerge className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
             {t("reconciliation")}
           </h1>
-          <p className="text-muted-foreground">
-            {t("matchVerify")}
-          </p>
+          <p className="text-muted-foreground text-sm hidden sm:block">{t("matchVerify")}</p>
         </div>
-        <div className="flex gap-2">
+
+        {/* Desktop */}
+        <div className="hidden sm:flex gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" onClick={() => {}}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {t("refresh")}
+            <RefreshCw className="h-4 w-4 mr-2" />{t("refresh")}
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportCSV}>
-            <Download className="h-4 w-4 mr-2" />
-            {t("exportCsv")}
+            <Download className="h-4 w-4 mr-2" />{t("exportCsv")}
           </Button>
+        </div>
+
+        {/* Mobile: Actions dropdown */}
+        <div className="relative sm:hidden flex-shrink-0" ref={actionsRef}>
+          <Button variant="outline" size="sm" onClick={() => setActionsOpen((v) => !v)} className="flex items-center gap-1">
+            <MoreVertical className="h-4 w-4" />
+            Actions
+          </Button>
+          {actionsOpen && (
+            <div className="absolute right-0 mt-1 w-44 rounded-lg border border-gray-200 bg-white shadow-lg z-50 dark:border-gray-700 dark:bg-gray-900">
+              <button
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 rounded-t-lg"
+                onClick={() => { setActionsOpen(false); }}
+              >
+                <RefreshCw className="h-4 w-4" />{t("refresh")}
+              </button>
+              <button
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 rounded-b-lg"
+                onClick={() => { handleExportCSV(); setActionsOpen(false); }}
+              >
+                <Download className="h-4 w-4" />{t("exportCsv")}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -319,7 +351,7 @@ export default function Reconciliation() {
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 flex-wrap">
-            <div className="flex-1 min-w-64">
+            <div className="w-full sm:flex-1 sm:min-w-48">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -390,20 +422,20 @@ export default function Reconciliation() {
           <CardTitle>{t("reconciliationRecords")}</CardTitle>
           <CardDescription>{filtered.length} {t("recordsFound")}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
           <div className="max-h-[600px] overflow-y-auto overflow-x-auto rounded-md border">
-            <Table>
+            <Table className="min-w-[700px]">
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableHead>{t("recId")}</TableHead>
-                  <TableHead>{t("date")}</TableHead>
-                  <TableHead>{t("transactionId2")}</TableHead>
-                  <TableHead>{t("terminals")}</TableHead>
-                  <TableHead>{t("paymentMethod")}</TableHead>
-                  <TableHead>{t("expected")}</TableHead>
-                  <TableHead>{t("actual")}</TableHead>
-                  <TableHead>{t("difference")}</TableHead>
-                  <TableHead>{t("status")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("recId")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("date")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("transactionId2")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("terminals")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("paymentMethod")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("expected")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("actual")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("difference")}</TableHead>
+                  <TableHead className="whitespace-nowrap">{t("status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

@@ -25,8 +25,8 @@ export interface Terminal {
 }
 
 export const TerminalService = {
-  async list(): Promise<{ items: Terminal[]; total: number }> {
-    const { data } = await api.get('/terminals');
+  async list(params?: { customer_id?: number; property_id?: number }): Promise<{ items: Terminal[]; total: number }> {
+    const { data } = await api.get('/terminals', { params });
     return data;
   },
 

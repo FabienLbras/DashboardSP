@@ -492,9 +492,13 @@ function tenantFilter(req, paramOffset = 0) {
   const cid = req.user.customer_id;
   const pid = req.user.property_id || null;
 
-  // hotel_manager & admin: all properties within their customer
+  // hotel_manager & admin: all properties within their customer, optional property filter
   if (role === 'hotel_manager' || role === 'admin') {
     if (!cid) return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [-1] };
+    const requestedPid = req.query.property_id ? parseInt(req.query.property_id) : null;
+    if (requestedPid) {
+      return { clause: `WHERE property_id = $${paramOffset + 1}`, params: [requestedPid] };
+    }
     return { clause: `WHERE customer_id = $${paramOffset + 1}`, params: [cid] };
   }
 
@@ -1841,6 +1845,25 @@ app.patch('/api/admin/sp-admins/:id/role', requireAuth, requireSuperAdmin, async
       html: roleChangeEmail({ name: user.name, email: user.email, role, loginUrl: `${APP_URL}/signin`, lang: userLang }),
     });
     res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ─── Properties for current user (hotel_manager) ─────────────────────────────
+app.get('/api/my/properties', requireAuth, async (req, res) => {
+  const role = normalizeRole(req.user.role);
+  const cid = req.user.customer_id;
+  if (!cid) return res.json({ items: [] });
+  // Only customer-scoped roles need this
+  if (role === SUPER_ADMIN_ROLE || role === SP_ADMIN_ROLE) return res.json({ items: [] });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, type, status FROM properties WHERE customer_id = $1 AND status = 'active' ORDER BY name`,
+      [cid]
+    );
+    res.json({ items: rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

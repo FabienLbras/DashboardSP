@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { CustomerFilterProvider } from "./context/CustomerFilterContext";
+import { PropertyFilterProvider } from "./context/PropertyFilterContext";
 import SignIn from "./pages/AuthPages/SignIn";
 import ForgotPassword from "./pages/AuthPages/ForgotPassword";
 import ResetPassword from "./pages/AuthPages/ResetPassword";
@@ -33,6 +34,7 @@ export default function App() {
     <LanguageProvider>
     <AuthProvider>
       <CustomerFilterProvider>
+      <PropertyFilterProvider>
       <Routes>
         <Route
           path="/signin"
@@ -106,6 +108,7 @@ export default function App() {
         </Route>
         <Route path="*" element={<Navigate to="/signin" />} />
       </Routes>
+      </PropertyFilterProvider>
       </CustomerFilterProvider>
     </AuthProvider>
     </LanguageProvider>

@@ -25,6 +25,9 @@ import {
 import axios from "axios";
 import { AuthService } from "../services/authService";
 import { EodService, type EodReport } from "../services/eodService";
+import { useAuth } from "../context/AuthContext";
+import { usePropertyFilter } from "../context/PropertyFilterContext";
+import PropertyFilterSelect from "../components/common/PropertyFilterSelect";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const api = axios.create({ baseURL: API_BASE_URL });
@@ -80,6 +83,9 @@ function SortIcon({ col, sort }: { col: string; sort: { col: string; dir: SortDi
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Reports() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const { selectedProperty } = usePropertyFilter();
+  const isHotelMgr = user?.role === "hotel_manager";
   const [tab, setTab] = useState<Tab>("transactions");
 
   // ── Data from API ────────────────────────────────────────────────────────────
@@ -87,9 +93,10 @@ export default function Reports() {
   const [allEod, setAllEod] = useState<EodReport[]>([]);
 
   useEffect(() => {
-    api.get("/payment/transactions").then((r) => setAllTx(r.data.items || [])).catch(console.error);
-    EodService.list().then((r) => setAllEod(r.items)).catch(console.error);
-  }, []);
+    const params = selectedProperty ? { property_id: selectedProperty.id } : {};
+    api.get("/payment/transactions", { params }).then((r) => setAllTx(r.data.items || [])).catch(console.error);
+    EodService.list(params).then((r) => setAllEod(r.items)).catch(console.error);
+  }, [selectedProperty]);
 
   // ── Date range ───────────────────────────────────────────────────────────────
   const [fromDate, setFromDate] = useState("");
@@ -462,6 +469,7 @@ export default function Reports() {
               {p.label}
             </Button>
           ))}
+          {isHotelMgr && <PropertyFilterSelect />}
         </div>
       </CardContent>
     </Card>

@@ -11,26 +11,27 @@ interface UseTransactionsReturn {
   loading: boolean;
   error: string;
   refreshing: boolean;
-  fetchTransactions: (showRefreshLoader?: boolean) => Promise<void>;
+  fetchTransactions: (propertyId?: number) => Promise<void>;
   refetch: () => void;
   clearError: () => void;
 }
 
 export function useTransactions(options: UseTransactionsOptions = {}): UseTransactionsReturn {
   const { initialFilters = {} } = options;
-  
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState<TransactionFilters>(initialFilters);
 
-  const fetchTransactions = useCallback(async () => {
+  const fetchTransactions = useCallback(async (propertyId?: number) => {
     try {
       setLoading(true);
       setError("");
-      
-      const transactionsData = await TransactionService.getTransactions(filters);
+
+      const params = propertyId ? { property_id: propertyId } : {};
+      const transactionsData = await TransactionService.getTransactions({ ...filters, ...params });
       setTransactions(transactionsData);
     } catch (err) {
       console.error("useTransactions: Failed to fetch transactions:", err);

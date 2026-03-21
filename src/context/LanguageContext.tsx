@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from "react";
+import AuthService from "../services/authService";
 
 export type Lang = "fr" | "en";
 
@@ -753,6 +754,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLang = (l: Lang) => {
     localStorage.setItem("sp_lang", l);
     setLangState(l);
+    // Persist to backend if authenticated
+    if (AuthService.isAuthenticated()) {
+      const token = AuthService.getAccessToken();
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/auth/lang`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ lang: l }),
+      }).catch(() => {});
+    }
   };
 
   const t = (key: TranslationKey): string => translations[lang][key] ?? key;

@@ -10,7 +10,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   pendingMfaChallenge: PendingMfaChallenge | null;
-  login: (email: string, password: string) => Promise<{ mfaRequired: boolean; usedBackupCode?: boolean }>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ mfaRequired: boolean; usedBackupCode?: boolean }>;
   verifyMfa: (code: string) => Promise<{ usedBackupCode?: boolean }>;
   clearMfaChallenge: () => void;
   logout: () => void;
@@ -38,9 +38,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [pendingMfaChallenge, setPendingMfaChallenge] = useState<PendingMfaChallenge | null>(null);
 
   // Login function
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe = true) => {
     try {
-      const authResponse = await AuthService.login({ email, password });
+      const authResponse = await AuthService.login({ email, password }, rememberMe);
 
       if ('mfaRequired' in authResponse) {
         const challenge = authResponse as MfaChallengeResponse;

@@ -3,9 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import AuthService from "../../services/authService";
 import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
+import LanguageSwitcher from "../../components/common/LanguageSwitcher";
+import { useLanguage } from "../../context/LanguageContext";
 
 export default function ChangePassword() {
   const { user, refreshUser, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -44,13 +47,16 @@ export default function ChangePassword() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher />
+      </div>
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
               <ShieldCheck className="w-8 h-8 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Change your password</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("changePassword")}</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
               Hi <strong>{user?.name}</strong>, your account requires a password change before you can access the platform.
             </p>
@@ -65,7 +71,7 @@ export default function ChangePassword() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                New password
+                {t("newPassword")}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -90,7 +96,7 @@ export default function ChangePassword() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Confirm password
+                {t("confirmPassword")}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -117,7 +123,7 @@ export default function ChangePassword() {
               disabled={loading}
               className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm transition disabled:opacity-60"
             >
-              {loading ? "Saving..." : "Set new password"}
+              {loading ? t("saving") : t("changePassword")}
             </button>
 
             <button
@@ -125,7 +131,7 @@ export default function ChangePassword() {
               onClick={() => logout()}
               className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
-              Sign out
+              {t("signOut")}
             </button>
           </form>
         </div>

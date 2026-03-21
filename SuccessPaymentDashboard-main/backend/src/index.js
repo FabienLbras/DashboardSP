@@ -1741,7 +1741,7 @@ app.patch('/api/admin/sp-admins/:id/role', requireAuth, requireSuperAdmin, async
     return res.status(403).json({ message: 'Cannot change your own role' });
   }
   try {
-    const { rows } = await pool.query('SELECT role FROM users WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query('SELECT name, email, role FROM users WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ message: 'User not found' });
     if (![SUPER_ADMIN_ROLE, SP_ADMIN_ROLE].includes(rows[0].role)) {
       return res.status(403).json({ message: 'Can only change role of platform admin users' });
@@ -1750,7 +1750,22 @@ app.patch('/api/admin/sp-admins/:id/role', requireAuth, requireSuperAdmin, async
       'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, name, email, role, created_at',
       [role, req.params.id]
     );
-    res.json(updated[0]);
+    const user = updated[0];
+    const roleLabel = role === SUPER_ADMIN_ROLE ? 'Super Admin' : 'Admin';
+    sendEmail({
+      to: user.email,
+      subject: `Your Success Payment role has been updated`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+          <h2 style="color:#1d4ed8">Role update</h2>
+          <p>Hi <strong>${user.name}</strong>,</p>
+          <p>Your account role on the Success Payment platform has been updated to <strong>${roleLabel}</strong>.</p>
+          <p>You can sign in at <a href="${APP_URL}/signin">${APP_URL}/signin</a></p>
+          <p style="color:#6b7280;font-size:12px">If you did not expect this change, please contact your administrator.</p>
+        </div>
+      `,
+    });
+    res.json(user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

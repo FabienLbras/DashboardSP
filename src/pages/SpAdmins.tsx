@@ -6,7 +6,7 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
-import { ShieldCheck, Plus, Trash2, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { ShieldCheck, Plus, Trash2, Loader2, AlertCircle, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { SpAdminService, SpAdmin } from "../services/spAdminService";
 import { useToast } from "../hooks/useToast";
 
@@ -32,6 +32,7 @@ export default function SpAdmins() {
 
   const [deleteTarget, setDeleteTarget] = useState<SpAdmin | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [changingRole, setChangingRole] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,6 +73,20 @@ export default function SpAdmins() {
       setFormError(e?.response?.data?.message || "Creation failed");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangeRole = async (admin: SpAdmin) => {
+    const newRole = admin.role === "super_admin" ? "sp_admin" : "super_admin";
+    setChangingRole(admin.id);
+    try {
+      const updated = await SpAdminService.changeRole(admin.id, newRole);
+      setAdmins(prev => prev.map(a => a.id === updated.id ? updated : a));
+      toast({ title: `Role changed to ${newRole === "super_admin" ? "Super Admin" : "Admin"}` });
+    } catch (e: any) {
+      toast({ title: "Change failed", description: e?.response?.data?.message });
+    } finally {
+      setChangingRole(null);
     }
   };
 
@@ -192,14 +207,28 @@ export default function SpAdmins() {
                           {new Date(a.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => setDeleteTarget(a)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title={a.role === "super_admin" ? "Downgrade to Admin" : "Upgrade to Super Admin"}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => handleChangeRole(a)}
+                              disabled={changingRole === a.id}
+                            >
+                              {changingRole === a.id
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <RefreshCw className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setDeleteTarget(a)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

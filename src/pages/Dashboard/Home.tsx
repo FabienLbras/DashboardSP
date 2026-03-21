@@ -6,7 +6,6 @@ import MonthlyTarget from "../../components/ecommerce/MonthlyTarget";
 import RecentOrders from "../../components/ecommerce/RecentOrders";
 import DemographicCard from "../../components/ecommerce/DemographicCard";
 import PageMeta from "../../components/common/PageMeta";
-import { Button } from "../../components/ui/button";
 import { useAuth } from "../../context/AuthContext";
 import { KPICard } from "../../components/dashboard/KPICard";
 import AuthService from "../../services/authService";
@@ -17,13 +16,10 @@ import {
   CreditCard,
   TrendingUp,
   AlertTriangle,
-  Download,
-  Eye,
   ShieldAlert,
   X,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { APP_PERMISSIONS, hasPermission } from "../../lib/permissions";
 import {
   BarChart,
   Bar,
@@ -47,7 +43,6 @@ export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const canGenerateReports = hasPermission(user?.role, APP_PERMISSIONS.GENERATE_REPORTS);
 
   const [mfaDisabled, setMfaDisabled] = useState(false);
   const [mfaBannerDismissed, setMfaBannerDismissed] = useState(false);
@@ -73,23 +68,9 @@ export default function Home() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-text-primary">{t("paymentDashboard")}</h1>
-          <p className="text-muted-foreground">{`${t("welcomeBack")}, ${user?.name}. ${t("hotelPaymentOverview")}`}</p>
-        </div>
-        {canGenerateReports && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              {t("exportReport")}
-            </Button>
-            <Button size="sm" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
-              <Eye className="h-4 w-4 mr-2" />
-              {t("viewDetails")}
-            </Button>
-          </div>
-        )}
+      <div className="mb-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-text-primary">{t("paymentDashboard")}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{`${t("welcomeBack")}, ${user?.name}. ${t("hotelPaymentOverview")}`}</p>
       </div>
       <PageMeta
         title="SP Dashboard"
@@ -98,9 +79,9 @@ export default function Home() {
 
       {/* MFA Warning Banner */}
       {mfaDisabled && !mfaBannerDismissed && (
-        <div className="flex items-center justify-between gap-3 mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
-          <div className="flex items-center gap-3">
-            <ShieldAlert className="h-5 w-5 shrink-0" />
+        <div className="flex items-start justify-between gap-3 mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+          <div className="flex items-start gap-3 min-w-0">
+            <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
             <p className="text-sm font-medium">
               {t("mfaWarning")}{" "}
               <button
@@ -155,20 +136,21 @@ export default function Home() {
           <CardTitle>{t("revenueTrend")}</CardTitle>
           <CardDescription>{t("dailyRevenueVolume")}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-2 sm:px-6">
           {dailyStats.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
               No transaction data yet
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dailyStats}>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={dailyStats} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="day"
+                  tick={{ fontSize: 11 }}
                   tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 />
-                <YAxis />
+                <YAxis tick={{ fontSize: 11 }} width={50} />
                 <Tooltip
                   labelFormatter={(value) => new Date(value).toLocaleDateString()}
                   formatter={(value: any, name: any) => [

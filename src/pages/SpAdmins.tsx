@@ -6,12 +6,26 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
-import { ShieldCheck, Plus, Trash2, Loader2, AlertCircle, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { ShieldCheck, Plus, Trash2, Loader2, AlertCircle, Eye, EyeOff, RefreshCw, Copy } from "lucide-react";
 import { SpAdminService, SpAdmin } from "../services/spAdminService";
 import { useToast } from "../hooks/useToast";
 
 type Form = { name: string; email: string; password: string; role: string };
-const emptyForm: Form = { name: "", email: "", password: "", role: "sp_admin" };
+
+function generatePassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const special = "!@#$%&*";
+  const all = upper + lower + digits + special;
+  const rand = (s: string) => s[Math.floor(Math.random() * s.length)];
+  // Guarantee at least one of each category
+  const base = rand(upper) + rand(lower) + rand(digits) + rand(special);
+  const rest = Array.from({ length: 8 }, () => rand(all)).join("");
+  return (base + rest).split("").sort(() => Math.random() - 0.5).join("");
+}
+
+const emptyForm = (): Form => ({ name: "", email: "", password: generatePassword(), role: "sp_admin" });
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   super_admin: { label: "Super Admin", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
@@ -25,7 +39,7 @@ export default function SpAdmins() {
   const [error, setError] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState<Form>(emptyForm);
+  const [form, setForm] = useState<Form>(emptyForm());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -50,9 +64,9 @@ export default function SpAdmins() {
   useEffect(() => { load(); }, [load]);
 
   const openCreate = () => {
-    setForm(emptyForm);
+    setForm(emptyForm());
     setFormError("");
-    setShowPassword(false);
+    setShowPassword(true);
     setDialogOpen(true);
   };
 
@@ -68,6 +82,7 @@ export default function SpAdmins() {
       await SpAdminService.create(form);
       toast({ title: "Admin created", description: `${form.name} has been invited by email.` });
       setDialogOpen(false);
+      setForm(emptyForm());
       load();
     } catch (e: any) {
       setFormError(e?.response?.data?.message || "Creation failed");
@@ -283,20 +298,39 @@ export default function SpAdmins() {
               </div>
               <div className="space-y-1">
                 <Label>Temporary Password *</Label>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="Min. 8 characters"
-                    required
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="Min. 8 characters"
+                      className="pr-8 font-mono text-sm"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
+                    title="Regenerate password"
+                    className="px-2 rounded-md border border-input bg-background hover:bg-accent text-muted-foreground"
+                    onClick={() => setForm(f => ({ ...f, password: generatePassword() }))}
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <RefreshCw className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Copy password"
+                    className="px-2 rounded-md border border-input bg-background hover:bg-accent text-muted-foreground"
+                    onClick={() => navigator.clipboard.writeText(form.password)}
+                  >
+                    <Copy className="h-4 w-4" />
                   </button>
                 </div>
               </div>

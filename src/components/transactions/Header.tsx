@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '../ui/button'
-import { Download, Loader2, RefreshCw, MoreVertical, ChevronDown } from 'lucide-react'
+import { Download, Loader2, RefreshCw, MoreVertical } from 'lucide-react'
+import { useLanguage } from '../../context/LanguageContext'
 
 interface HeaderProps {
   handleRefresh: () => void;
@@ -19,6 +20,7 @@ const Header = ({
     displayTransactions,
     canExport,
 }: HeaderProps) => {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -35,20 +37,20 @@ const Header = ({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-2xl sm:text-3xl font-bold text-text-primary">Transactions</h1>
-        <p className="text-muted-foreground text-sm hidden sm:block">Manage and monitor all payment transactions</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-text-primary">{t("transactions")}</h1>
+        <p className="text-muted-foreground text-sm hidden sm:block">{t("manageMonitorTransactions")}</p>
       </div>
 
       {/* Desktop: boutons séparés */}
       <div className="hidden sm:flex gap-2 flex-shrink-0">
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Refresh
+          {t("refresh")}
         </Button>
         {canExport && (
           <>
             <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={disabled}>
-              <Download className="h-4 w-4 mr-2" />Export CSV
+              <Download className="h-4 w-4 mr-2" />{t("exportCsv")}
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={disabled}>
               <Download className="h-4 w-4 mr-2" />Export PDF
@@ -67,7 +69,7 @@ const Header = ({
           className="flex items-center gap-1"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4" />}
-          Actions
+          {t("actions")}
         </Button>
 
         {open && (
@@ -76,8 +78,7 @@ const Header = ({
               className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 rounded-t-lg"
               onClick={() => { handleRefresh(); setOpen(false); }}
             >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
+              <RefreshCw className="h-4 w-4" />{t("refresh")}
             </button>
             {canExport && (
               <>
@@ -86,16 +87,14 @@ const Header = ({
                   onClick={() => { handleExportCSV(); setOpen(false); }}
                   disabled={disabled}
                 >
-                  <Download className="h-4 w-4" />
-                  Export CSV
+                  <Download className="h-4 w-4" />{t("exportCsv")}
                 </button>
                 <button
                   className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 disabled:opacity-40 rounded-b-lg"
                   onClick={() => { handleExportPDF(); setOpen(false); }}
                   disabled={disabled}
                 >
-                  <Download className="h-4 w-4" />
-                  Export PDF
+                  <Download className="h-4 w-4" />Export PDF
                 </button>
               </>
             )}

@@ -65,7 +65,7 @@ export default function Terminals() {
       const res = await TerminalService.list(params);
       setTerminals(res.items);
     } catch (e: any) {
-      setError(e?.response?.data?.message || "Failed to load terminals");
+      setError(e?.response?.data?.message || t("noTerminalsYet"));
     } finally {
       setLoading(false);
     }
@@ -152,7 +152,7 @@ export default function Terminals() {
     try {
       const res = await TerminalService.getKey(terminal.id);
       if (!res.api_key) {
-        toast({ title: "No key yet", description: "Generate a key first." });
+        toast({ title: t("noKeyYet"), description: t("generateFirst") });
         return;
       }
       setQrTerminal({ id: res.id, name: res.name, api_key: res.api_key });
@@ -218,7 +218,7 @@ export default function Terminals() {
             <div className="text-2xl font-bold text-blue-600">
               {terminals.filter(term => term.api_key).length}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">terminals configured</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("terminalsConfigured")}</p>
           </CardContent>
         </Card>
       </div>
@@ -256,7 +256,7 @@ export default function Terminals() {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Connected Terminals</CardTitle>
+          <CardTitle>{t("connectedTerminals")}</CardTitle>
           <CardDescription>{filteredTerminals.length} {t("terminalsFound")}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -271,7 +271,7 @@ export default function Terminals() {
             </div>
           ) : filteredTerminals.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              {terminals.length === 0 ? "No terminals yet." : "No terminals match your search."}
+              {terminals.length === 0 ? t("noTerminalsYet") : t("noTerminalsMatch")}
             </div>
           ) : (
             <div className="rounded-md border overflow-x-auto">
@@ -312,7 +312,7 @@ export default function Terminals() {
                           isAdmin ? (
                             <Button variant="outline" size="sm" onClick={() => handleGenerateKey(terminal)} disabled={generatingKey === terminal.id}>
                               {generatingKey === terminal.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <KeyRound className="h-3 w-3 mr-1" />}
-                              Generate
+                              {t("generateKey")}
                             </Button>
                           ) : <span className="text-muted-foreground text-sm">—</span>
                         )}
@@ -329,7 +329,7 @@ export default function Terminals() {
                             <DropdownMenuContent align="end">
                               {isAdmin && (
                                 <DropdownMenuItem onClick={() => handleGenerateKey(terminal)}>
-                                  <KeyRound className="h-4 w-4 mr-2" />Regenerate API Key
+                                  <KeyRound className="h-4 w-4 mr-2" />{t("regenerateKey")}
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem onClick={() => openEdit(terminal)}>
@@ -423,7 +423,7 @@ export default function Terminals() {
           {qrTerminal && (
             <div className="flex flex-col items-center gap-4 py-2">
               <p className="text-sm text-muted-foreground text-center">
-                Scan this QR code with the terminal's barcode scanner to configure <strong>{qrTerminal.name}</strong>.
+                {t("scanQrTerminal")} <strong>{qrTerminal.name}</strong>.
               </p>
               <div className="p-4 bg-white rounded-xl border shadow-sm">
                 <QRCodeSVG value={qrPayload} size={200} level="M" />
@@ -435,10 +435,10 @@ export default function Terminals() {
                 </div>
               </div>
               <p className="text-xs text-amber-600 text-center">
-                Store this key securely. Anyone with this key can push data to the dashboard.
+                {t("storeKeySecurely")}
               </p>
               <Button variant="outline" size="sm" onClick={() => handleGenerateKey({ id: qrTerminal.id } as Terminal)}>
-                <KeyRound className="h-3 w-3 mr-2" />Regenerate key
+                <KeyRound className="h-3 w-3 mr-2" />{t("regenerateKey")}
               </Button>
             </div>
           )}

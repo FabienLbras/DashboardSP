@@ -466,7 +466,7 @@ export default function Reports() {
             },
           ].map((p) => (
             <Button key={p.label} variant="outline" size="sm" onClick={() => { setFromDate(p.from); setToDate(p.to); }}>
-              {p.label}
+              {p.label === "Last 7d" ? t("last7d") : p.label === "Last 30d" ? t("last30d") : t("allDatesShort")}
             </Button>
           ))}
           {isHotelMgr && <PropertyFilterSelect />}
@@ -634,17 +634,17 @@ export default function Reports() {
                   <Input placeholder={t("searchIdCustomer")} value={txSearch} onChange={(e) => setTxSearch(e.target.value)} className="pl-9" />
                 </div>
                 <Select value={txStatus} onValueChange={setTxStatus}>
-                  <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectTrigger className="w-36"><SelectValue placeholder={t("status")} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("allStatuses")}</SelectItem>
-                    <SelectItem value="FULFILL">FULFILL</SelectItem>
-                    <SelectItem value="FAILED">FAILED</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="refunded">Refunded</SelectItem>
+                    <SelectItem value="FULFILL">{t("fulfilled")}</SelectItem>
+                    <SelectItem value="FAILED">{t("failed")}</SelectItem>
+                    <SelectItem value="pending">{t("pending")}</SelectItem>
+                    <SelectItem value="refunded">{t("refunded")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={txMethod} onValueChange={setTxMethod}>
-                  <SelectTrigger className="w-44"><SelectValue placeholder="Method" /></SelectTrigger>
+                  <SelectTrigger className="w-44"><SelectValue placeholder={t("paymentMethod")} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("allMethods")}</SelectItem>
                     {paymentMethods.map((m) => (
@@ -766,7 +766,7 @@ export default function Reports() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>{t("eodDetails")}</CardTitle>
-                <CardDescription>{filteredEod.length} records</CardDescription>
+                <CardDescription>{filteredEod.length} {t("recordsFound2")}</CardDescription>
               </div>
               <Button onClick={exportEodCsv} variant="outline" size="sm" className="gap-2">
                 <Download className="h-4 w-4" />{t("exportCsv")}
@@ -786,7 +786,7 @@ export default function Reports() {
                       {[
                         { col: "id", label: t("eodId") },
                         { col: "report_date", label: t("date") },
-                        { col: "terminal_name", label: "Terminal" },
+                        { col: "terminal_name", label: t("terminals") },
                         { col: "total_transactions", label: t("totalTx") },
                         { col: "successful_transactions", label: t("success") },
                         { col: "failed_transactions", label: t("failed") },

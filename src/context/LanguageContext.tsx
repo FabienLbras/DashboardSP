@@ -367,6 +367,39 @@ const translations = {
     downloadPdf: "Download PDF",
     sendReminder: "Send Reminder",
     generatingPdf: "Generating PDF",
+
+    // Transactions page (Header + Filters)
+    manageMonitorTransactions: "Manage and monitor all payment transactions",
+    filterByMethod: "Filter by method",
+    filterByTerminal: "Filter by terminal",
+    allTime: "All Time",
+    thisQuarterShort: "This Quarter",
+    allStatuses2: "All Statuses",
+    voided: "Voided",
+
+    // Reports page extras
+    last7d: "Last 7d",
+    last30d: "Last 30d",
+    allDatesShort: "All",
+    recordsFound2: "records",
+    noEodStatsYet: "No EOD data yet. Statistics will appear once terminals start pushing end-of-day reports.",
+    best: "Best",
+    lowest: "Lowest",
+    weekdayAvg: "Weekday avg",
+    weekendAvg: "Weekend avg",
+    basedOnReports: "Based on all available EOD data",
+
+    // Terminals page extras
+    connectedTerminals: "Connected Terminals",
+    terminalsConfigured: "terminals configured",
+    noTerminalsYet: "No terminals yet.",
+    noTerminalsMatch: "No terminals match your search.",
+    generateKey: "Generate Key",
+    regenerateKey: "Regenerate key",
+    scanQrTerminal: "Scan this QR code with the terminal's barcode scanner to configure",
+    storeKeySecurely: "Store this key securely. Anyone with this key can push data to the dashboard.",
+    noKeyYet: "No key yet",
+    generateFirst: "Generate a key first.",
   },
   fr: {
     // Nav
@@ -731,6 +764,39 @@ const translations = {
     downloadPdf: "Télécharger PDF",
     sendReminder: "Envoyer un rappel",
     generatingPdf: "Génération du PDF",
+
+    // Transactions page (Header + Filters)
+    manageMonitorTransactions: "Gérer et surveiller toutes les transactions de paiement",
+    filterByMethod: "Filtrer par moyen",
+    filterByTerminal: "Filtrer par terminal",
+    allTime: "Toutes les dates",
+    thisQuarterShort: "Ce trimestre",
+    allStatuses2: "Tous les statuts",
+    voided: "Annulé",
+
+    // Reports page extras
+    last7d: "7 derniers jours",
+    last30d: "30 derniers jours",
+    allDatesShort: "Tout",
+    recordsFound2: "enregistrements",
+    noEodStatsYet: "Aucune donnée FdJ. Les statistiques apparaîtront dès que les terminaux commenceront à envoyer des rapports de fin de journée.",
+    best: "Meilleur",
+    lowest: "Plus faible",
+    weekdayAvg: "Moy. semaine",
+    weekendAvg: "Moy. week-end",
+    basedOnReports: "Basé sur toutes les données FdJ disponibles",
+
+    // Terminals page extras
+    connectedTerminals: "Terminaux connectés",
+    terminalsConfigured: "terminaux configurés",
+    noTerminalsYet: "Aucun terminal pour l'instant.",
+    noTerminalsMatch: "Aucun terminal ne correspond à votre recherche.",
+    generateKey: "Générer une clé",
+    regenerateKey: "Régénérer la clé",
+    scanQrTerminal: "Scannez ce QR code avec le lecteur de code-barres du terminal pour configurer",
+    storeKeySecurely: "Stockez cette clé en lieu sûr. Toute personne ayant cette clé peut envoyer des données au tableau de bord.",
+    noKeyYet: "Pas encore de clé",
+    generateFirst: "Générez d'abord une clé.",
   },
 };
 

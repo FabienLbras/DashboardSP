@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "../../components/ui/select";
+import { useLanguage } from '../../context/LanguageContext'
 
 const TransactionFilters = ({
     searchTerm,
@@ -22,18 +23,19 @@ const TransactionFilters = ({
     loading,
     propertyFilter
 }: any) => {
+    const { t } = useLanguage();
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-lg">Filters</CardTitle>
+                <CardTitle className="text-lg">{t("filter")}</CardTitle>
             </CardHeader>
         <CardContent>
           <div className="flex gap-4 flex-wrap">
-            <div className="flex-1 min-w-64">
+            <div className="flex-1 min-w-48">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search by ID or customer..."
+                  placeholder={t("searchIdCustomer")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -43,21 +45,21 @@ const TransactionFilters = ({
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter} disabled={loading}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={t("filterByStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="FULFILL">FulFilled</SelectItem>
-                <SelectItem value="FAILED">Failed</SelectItem>
-                <SelectItem value="VOIDED">Voided</SelectItem>
+                <SelectItem value="all">{t("allStatuses2")}</SelectItem>
+                <SelectItem value="FULFILL">{t("fulfilled")}</SelectItem>
+                <SelectItem value="FAILED">{t("failed")}</SelectItem>
+                <SelectItem value="VOIDED">{t("voided")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={terminalFilter} onValueChange={setTerminalFilter} disabled={true}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by terminal" />
+                <SelectValue placeholder={t("filterByTerminal")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Terminals</SelectItem>
+                <SelectItem value="all">{t("allTerminalsRec")}</SelectItem>
                 <SelectItem value="TERM-001">Main Reception</SelectItem>
                 <SelectItem value="TERM-002">Restaurant POS</SelectItem>
                 <SelectItem value="TERM-003">Spa Counter</SelectItem>
@@ -66,15 +68,15 @@ const TransactionFilters = ({
             </Select>
             <Select value={dateFilter} onValueChange={setDateFilter} disabled={loading}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Date range" />
+                <SelectValue placeholder={t("dateRange")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="quarter">This Quarter</SelectItem>
+                <SelectItem value="all">{t("allTime")}</SelectItem>
+                <SelectItem value="today">{t("today")}</SelectItem>
+                <SelectItem value="yesterday">{t("yesterday")}</SelectItem>
+                <SelectItem value="week">{t("thisWeek")}</SelectItem>
+                <SelectItem value="month">{t("thisMonth")}</SelectItem>
+                <SelectItem value="quarter">{t("thisQuarterShort")}</SelectItem>
               </SelectContent>
             </Select>
             {propertyFilter && propertyFilter}

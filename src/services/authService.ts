@@ -64,13 +64,16 @@ export class AuthService {
   private static readonly USER_KEY = 'user';
 
   // Login method
-  static async login(credentials: LoginRequest): Promise<AuthResponse | MfaChallengeResponse> {
+  static async login(credentials: LoginRequest, rememberMe = true): Promise<AuthResponse | MfaChallengeResponse> {
     try {
       const response = await authAPI.post<AuthResponse | MfaChallengeResponse>('/auth/login', credentials);
       const authData = response.data;
 
       if (!('mfaRequired' in authData)) {
-        this.storeAuthData(authData);
+        this.storeAuthData(authData, rememberMe);
+      } else {
+        // Store rememberMe preference for use after MFA
+        sessionStorage.setItem('sp_remember_me', rememberMe ? '1' : '0');
       }
 
       return authData;
@@ -87,7 +90,9 @@ export class AuthService {
         code,
       });
       const authData = response.data;
-      this.storeAuthData(authData);
+      const persist = sessionStorage.getItem('sp_remember_me') !== '0';
+      sessionStorage.removeItem('sp_remember_me');
+      this.storeAuthData(authData, persist);
       return authData;
     } catch (error) {
       console.error('MFA login verification error:', error);
@@ -161,7 +166,7 @@ export class AuthService {
     return response.data;
   }
 
-  private static storeAuthData(authData: AuthResponse): void {
+  private static storeAuthData(authData: AuthResponse, persist = true): void {
     const user: User = {
       email: authData.email,
       name: authData.name,
@@ -169,10 +174,20 @@ export class AuthService {
       must_change_password: authData.must_change_password || false,
     };
 
-    // Store in localStorage (persistent) and sessionStorage (session-based)
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, authData.accessToken);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, authData.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    const storage = persist ? localStorage : sessionStorage;
+    // Clear the other storage to avoid stale tokens
+    if (persist) {
+      sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
+      sessionStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      sessionStorage.removeItem(this.USER_KEY);
+    } else {
+      localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      localStorage.removeItem(this.USER_KEY);
+    }
+    storage.setItem(this.ACCESS_TOKEN_KEY, authData.accessToken);
+    storage.setItem(this.REFRESH_TOKEN_KEY, authData.refreshToken);
+    storage.setItem(this.USER_KEY, JSON.stringify(user));
   }
 
   // Refresh token method

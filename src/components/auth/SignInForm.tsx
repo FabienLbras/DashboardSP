@@ -28,7 +28,7 @@ export default function SignInForm() {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, isChecked);
       if (result.mfaRequired) {
         setOtpCode("");
         setInfoMsg("Enter the 6-digit code from your authenticator app or a backup code.");

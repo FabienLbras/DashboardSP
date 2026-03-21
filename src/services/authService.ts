@@ -213,29 +213,6 @@ export class AuthService {
     }
   }
 
-  // Change password
-  static async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    const token = this.getAccessToken();
-    if (!token) {
-      throw new Error('No authentication token');
-    }
-
-    try {
-      await authAPI.post('/auth/change-password', {
-        currentPassword,
-        newPassword,
-        confirmNewPassword: newPassword
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-    } catch (error) {
-      console.error('Change password error:', error);
-      throw error;
-    }
-  }
-
   // Forgot password
   static async forgotPassword(email: string): Promise<string> {
     try {

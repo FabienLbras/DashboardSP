@@ -2,7 +2,7 @@ import { useSidebar } from "../../context/SidebarContext";
 import Header from "./Header";
 
 export default function AppHeader() {
-  const { toggleSidebar } = useSidebar();
+  const { toggleMobileSidebar } = useSidebar();
 
-  return <Header onToggle={toggleSidebar} />;
+  return <Header onToggle={toggleMobileSidebar} />;
 }

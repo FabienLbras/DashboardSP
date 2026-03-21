@@ -24,7 +24,7 @@ export const SpAdminService = {
     return data;
   },
 
-  async create(payload: { name: string; email: string; password: string }): Promise<SpAdmin> {
+  async create(payload: { name: string; email: string; password: string; lang?: string }): Promise<SpAdmin> {
     const { data } = await api.post('/admin/sp-admins', payload);
     return data;
   },

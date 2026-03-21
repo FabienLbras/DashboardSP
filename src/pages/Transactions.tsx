@@ -29,11 +29,14 @@ import TransactionFilters from "../components/transactions/TransactionFilters";
 import TransactionActions from "../components/transactions/TransactionActions";
 import { useAuth } from "../context/AuthContext";
 import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
+import { usePropertyFilter } from "../context/PropertyFilterContext";
+import PropertyFilterSelect from "../components/common/PropertyFilterSelect";
 
 
 
 export default function Transactions() {
   const { user } = useAuth();
+  const { selectedProperty } = usePropertyFilter();
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -41,14 +44,15 @@ export default function Transactions() {
   const [dateFilter, setDateFilter] = useState("all");
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const isHotelMgr = user?.role === "hotel_manager";
 
   const { fetchTransactions, transactions, loading } = useTransactions();
   const { toast } = useToast();
   const canExportReports = hasPermission(user?.role, APP_PERMISSIONS.EXPORT_REPORTS);
 
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    fetchTransactions(selectedProperty?.id);
+  }, [selectedProperty]);
 
   // Helper function to filter transactions based on current filters
   const getFilteredTransactions = () => {
@@ -167,7 +171,7 @@ export default function Transactions() {
 
   // Handle refresh statusFilter, terminalFilter, dateFilter
   const handleRefresh = () => {
-    fetchTransactions();
+    fetchTransactions(selectedProperty?.id);
   };
 
   // Handle CSV export
@@ -432,6 +436,7 @@ export default function Transactions() {
         dateFilter={dateFilter}
         setDateFilter={setDateFilter}
         loading={loading}
+        propertyFilter={isHotelMgr ? <PropertyFilterSelect /> : null}
       />
 
       {/* Transactions Table */}
@@ -517,7 +522,7 @@ export default function Transactions() {
                       <TableCell>
                         <TransactionActions
                           transaction={transaction}
-                          fetchTransactions={fetchTransactions}
+                          fetchTransactions={() => fetchTransactions(selectedProperty?.id)}
                           setSelectedTransaction={setSelectedTransaction}
                           setIsDetailsModalOpen={setIsDetailsModalOpen}
                           transactions={transactions}

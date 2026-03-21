@@ -11,12 +11,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { QRCodeSVG } from "qrcode.react";
 import { useCustomerFilter } from "../context/CustomerFilterContext";
+import { usePropertyFilter } from "../context/PropertyFilterContext";
 import { isSuperAdmin } from "../lib/permissions";
 import { useAuth } from "../context/AuthContext";
 import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../hooks/useToast";
 import { TerminalService, Terminal } from "../services/terminalService";
+import PropertyFilterSelect from "../components/common/PropertyFilterSelect";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
@@ -26,9 +28,11 @@ const emptyForm: TerminalForm = { name: "", serial_number: "", location: "", mod
 export default function Terminals() {
   const { user } = useAuth();
   const { selectedCustomer, setSelectedCustomer, customers } = useCustomerFilter();
+  const { selectedProperty } = usePropertyFilter();
   const { t } = useLanguage();
   const { toast } = useToast();
   const isAdmin = isSuperAdmin(user?.role);
+  const isHotelMgr = user?.role === "hotel_manager";
   const canManage = hasPermission(user?.role, APP_PERMISSIONS.MANAGE_TERMINALS);
 
   const [terminals, setTerminals] = useState<Terminal[]>([]);
@@ -55,14 +59,17 @@ export default function Terminals() {
     setLoading(true);
     setError("");
     try {
-      const res = await TerminalService.list();
+      const params: Record<string, number> = {};
+      if (selectedCustomer) params.customer_id = selectedCustomer.id;
+      if (selectedProperty) params.property_id = selectedProperty.id;
+      const res = await TerminalService.list(params);
       setTerminals(res.items);
     } catch (e: any) {
       setError(e?.response?.data?.message || "Failed to load terminals");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCustomer, selectedProperty]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -241,6 +248,7 @@ export default function Terminals() {
                 </SelectContent>
               </Select>
             )}
+            {isHotelMgr && <PropertyFilterSelect />}
           </div>
         </CardContent>
       </Card>

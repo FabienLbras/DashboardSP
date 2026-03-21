@@ -19,7 +19,8 @@ const TransactionFilters = ({
     setTerminalFilter,
     dateFilter,
     setDateFilter,
-    loading
+    loading,
+    propertyFilter
 }: any) => {
     return (
         <Card>
@@ -76,6 +77,7 @@ const TransactionFilters = ({
                 <SelectItem value="quarter">This Quarter</SelectItem>
               </SelectContent>
             </Select>
+            {propertyFilter && propertyFilter}
           </div>
         </CardContent>
       </Card>

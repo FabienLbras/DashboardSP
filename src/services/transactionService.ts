@@ -8,7 +8,7 @@ export class TransactionService {
    */
   static async getTransactions(filters: TransactionFilters = {}): Promise<Transaction[]> {
     try {
-      const response = await apiService.transactions.getAll();
+      const response = await apiService.transactions.getAll(filters);
       return response.data.items || [];
     } catch (error) {
       console.error("Error fetching transactions:", error);

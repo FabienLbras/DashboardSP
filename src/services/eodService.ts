@@ -29,8 +29,8 @@ export interface EodReport {
 }
 
 export const EodService = {
-  async list(): Promise<{ items: EodReport[]; total: number }> {
-    const { data } = await api.get('/eod-reports');
+  async list(params?: { customer_id?: number; property_id?: number }): Promise<{ items: EodReport[]; total: number }> {
+    const { data } = await api.get('/eod-reports', { params });
     return data;
   },
 };

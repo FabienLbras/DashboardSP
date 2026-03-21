@@ -6,7 +6,9 @@ import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { useAuth } from "../context/AuthContext";
 import { useCustomerFilter } from "../context/CustomerFilterContext";
-import { isSuperAdmin } from "../lib/permissions";
+import { usePropertyFilter } from "../context/PropertyFilterContext";
+import { isSuperAdmin, isPlatformAdmin } from "../lib/permissions";
+import PropertyFilterSelect from "../components/common/PropertyFilterSelect";
 import {
   Table,
   TableBody,
@@ -41,7 +43,9 @@ export default function EndOfDay() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { selectedCustomer, setSelectedCustomer, customers } = useCustomerFilter();
+  const { selectedProperty } = usePropertyFilter();
   const isAdmin = isSuperAdmin(user?.role);
+  const isHotelMgr = user?.role === "hotel_manager";
 
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
@@ -51,11 +55,14 @@ export default function EndOfDay() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    EodService.list()
+    const params: Record<string, number> = {};
+    if (selectedCustomer) params.customer_id = selectedCustomer.id;
+    if (selectedProperty) params.property_id = selectedProperty.id;
+    EodService.list(params)
       .then((res) => setReports(res.items))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedCustomer, selectedProperty]);
 
   // Detect missing EOD days in the existing data range
   const missingDays = useMemo(() => {
@@ -359,6 +366,7 @@ export default function EndOfDay() {
                 </SelectContent>
               </Select>
             )}
+            {isHotelMgr && <PropertyFilterSelect />}
           </div>
         </CardContent>
       </Card>

@@ -1,6 +1,10 @@
+// @ts-ignore
 import { initializeApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
+// @ts-ignore
+import { getAuth } from "firebase/auth";
+// @ts-ignore
 import { getFirestore } from "firebase/firestore";
+type Auth = ReturnType<typeof getAuth>;
 
 // Replace with your actual config
 const firebaseConfig = {

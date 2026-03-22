@@ -10,6 +10,8 @@ import { Download, Eye, MoreHorizontal, RefreshCw } from 'lucide-react';
 import TransactionService from '../../services/transactionService';
 import { useToast } from "../../hooks/useToast";
 import { Transaction } from "../../types/transaction";
+import { useAuth } from "../../context/AuthContext";
+import { APP_PERMISSIONS, hasPermission } from "../../lib/permissions";
 
 interface TransactionActionsProps {
   transaction: Transaction;
@@ -29,6 +31,8 @@ const TransactionActions = ({
     setError
 }: TransactionActionsProps) => {
     const { toast } = useToast();
+    const { user } = useAuth();
+    const canUseVirtualTerminal = hasPermission(user?.role, APP_PERMISSIONS.USE_VIRTUAL_TERMINAL);
     // Handle view transaction details
       const handleViewDetails = async (transactionId: string) => {
         try {
@@ -91,7 +95,7 @@ const TransactionActions = ({
                     <Download className="h-4 w-4 mr-2" />
                     Download Receipt
                 </DropdownMenuItem>
-                {transaction.state === "completed" && (
+                {canUseVirtualTerminal && transaction.state === "completed" && (
                     <DropdownMenuItem onClick={() => handleProcessRefund(transaction?.id)}>
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Process Refund

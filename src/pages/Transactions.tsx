@@ -1,7 +1,9 @@
 
 
 
+
 import { PERMISSIONS } from "../auth/permissions";
+
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -32,12 +34,18 @@ import autoTable from 'jspdf-autotable';
 import Header from "../components/transactions/Header";
 import TransactionFilters from "../components/transactions/TransactionFilters";
 import TransactionActions from "../components/transactions/TransactionActions";
+import { useAuth } from "../context/AuthContext";
+import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 
 import ProtectedRoute from "../auth/ProtectedRoute";
 
 
 export default function Transactions() {
+
   
+
+  const { user } = useAuth();
+
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -48,6 +56,7 @@ export default function Transactions() {
 
   const { fetchTransactions, transactions, loading } = useTransactions();
   const { toast } = useToast();
+  const canExportReports = hasPermission(user?.role, APP_PERMISSIONS.EXPORT_REPORTS);
 
   useEffect(() => {
     fetchTransactions();
@@ -414,6 +423,7 @@ export default function Transactions() {
         handleExportPDF={handleExportPDF}
         loading={loading}
         displayTransactions={displayTransactions}
+        canExport={canExportReports}
       />
 
       {/* Error Alert */}
@@ -491,7 +501,7 @@ export default function Transactions() {
               )}
             </div>
           ) : (
-            <div className="max-h-[600px] overflow-y-auto rounded-md border">
+            <div className="max-h-[600px] overflow-y-auto overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>

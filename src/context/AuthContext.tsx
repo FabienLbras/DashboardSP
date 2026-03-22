@@ -1,19 +1,32 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import AuthService, { User } from "../services/authService";
+import AuthService, { MfaChallengeResponse, User } from "../services/authService";
+
+interface PendingMfaChallenge {
+  email: string;
+  mfaToken: string;
+}
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  pendingMfaChallenge: PendingMfaChallenge | null;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ mfaRequired: boolean; usedBackupCode?: boolean }>;
+  verifyMfa: (code: string) => Promise<{ usedBackupCode?: boolean }>;
+  clearMfaChallenge: () => void;
   logout: () => void;
+  refreshUser: (updatedUser: User) => void;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({ 
   user: null, 
   loading: true,
-  login: async () => {},
+  pendingMfaChallenge: null,
+  login: async () => ({ mfaRequired: false }),
+  verifyMfa: async () => ({}),
+  clearMfaChallenge: () => {},
   logout: () => {},
+  refreshUser: () => {},
   isAuthenticated: false
 });
 
@@ -22,25 +35,68 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingMfaChallenge, setPendingMfaChallenge] = useState<PendingMfaChallenge | null>(null);
 
   // Login function
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe = true) => {
     try {
-      const authResponse = await AuthService.login({ email, password });
+      const authResponse = await AuthService.login({ email, password }, rememberMe);
+
+      if ('mfaRequired' in authResponse) {
+        const challenge = authResponse as MfaChallengeResponse;
+        setPendingMfaChallenge({ email, mfaToken: challenge.mfaToken });
+        setUser(null);
+        return { mfaRequired: true };
+      }
+
       const userData: User = {
         email: authResponse.email,
-        name: authResponse.name
+        name: authResponse.name,
+        role: authResponse.role,
+        must_change_password: authResponse.must_change_password || false,
       };
+      setPendingMfaChallenge(null);
       setUser(userData);
+      return { mfaRequired: false, usedBackupCode: authResponse.usedBackupCode };
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
     }
   };
 
+  const refreshUser = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
+  const verifyMfa = async (code: string) => {
+    if (!pendingMfaChallenge) {
+      throw new Error("Aucun challenge MFA en cours");
+    }
+
+    try {
+      const authResponse = await AuthService.verifyMfaLogin(pendingMfaChallenge.mfaToken, code);
+      const userData: User = {
+        email: authResponse.email,
+        name: authResponse.name,
+        role: authResponse.role,
+      };
+      setUser(userData);
+      setPendingMfaChallenge(null);
+      return { usedBackupCode: authResponse.usedBackupCode };
+    } catch (error) {
+      console.error('MFA verification failed:', error);
+      throw error;
+    }
+  };
+
+  const clearMfaChallenge = () => {
+    setPendingMfaChallenge(null);
+  };
+
   // Logout function
   const logout = () => {
     AuthService.logout();
+    setPendingMfaChallenge(null);
     setUser(null);
   };
 
@@ -56,7 +112,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           try {
             const isValid = await AuthService.validateToken();
             if (isValid) {
-              setUser(currentUser);
+              if (currentUser.role) {
+                setUser(currentUser);
+              } else {
+                const profile = await AuthService.getProfile();
+                setUser(profile);
+              }
             } else {
               // Token is invalid, logout
               AuthService.logout();
@@ -96,12 +157,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      login, 
-      logout, 
-      isAuthenticated: !!user 
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      pendingMfaChallenge,
+      login,
+      verifyMfa,
+      clearMfaChallenge,
+      logout,
+      refreshUser,
+      isAuthenticated: !!user
     }}>
       {children}
     </AuthContext.Provider>

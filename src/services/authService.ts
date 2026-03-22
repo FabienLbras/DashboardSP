@@ -19,6 +19,11 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface MfaChallengeResponse {
+  mfaRequired: true;
+  mfaToken: string;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
@@ -26,11 +31,30 @@ export interface AuthResponse {
   expiresIn: number;
   email: string;
   name: string;
+  role: string;
+  must_change_password?: boolean;
+  usedBackupCode?: boolean;
+}
+
+export interface MfaStatusResponse {
+  mfaEnabled: boolean;
+  backupCodesRemaining: number;
+}
+
+export interface MfaSetupResponse {
+  secret: string;
+  qrCode: string;
+}
+
+export interface BackupCodesResponse {
+  backupCodes: string[];
 }
 
 export interface User {
   email: string;
   name: string;
+  role: string;
+  must_change_password?: boolean;
 }
 
 // Authentication service
@@ -40,17 +64,38 @@ export class AuthService {
   private static readonly USER_KEY = 'user';
 
   // Login method
-  static async login(credentials: LoginRequest): Promise<AuthResponse> {
+  static async login(credentials: LoginRequest, rememberMe = true): Promise<AuthResponse | MfaChallengeResponse> {
     try {
-      const response = await authAPI.post<AuthResponse>('/auth/login', credentials);
+      const response = await authAPI.post<AuthResponse | MfaChallengeResponse>('/auth/login', credentials);
       const authData = response.data;
 
-      // Store tokens and user data
-      this.storeAuthData(authData);
+      if (!('mfaRequired' in authData)) {
+        this.storeAuthData(authData, rememberMe);
+      } else {
+        // Store rememberMe preference for use after MFA
+        sessionStorage.setItem('sp_remember_me', rememberMe ? '1' : '0');
+      }
 
       return authData;
     } catch (error) {
       console.error('Login error:', error);
+      throw error;
+    }
+  }
+
+  static async verifyMfaLogin(mfaToken: string, code: string): Promise<AuthResponse> {
+    try {
+      const response = await authAPI.post<AuthResponse>('/auth/mfa/login-verify', {
+        mfaToken,
+        code,
+      });
+      const authData = response.data;
+      const persist = sessionStorage.getItem('sp_remember_me') !== '0';
+      sessionStorage.removeItem('sp_remember_me');
+      this.storeAuthData(authData, persist);
+      return authData;
+    } catch (error) {
+      console.error('MFA login verification error:', error);
       throw error;
     }
   }
@@ -109,16 +154,40 @@ export class AuthService {
   }
 
   // Store authentication data
-  private static storeAuthData(authData: AuthResponse): void {
+  static async changePassword(newPasswordOrCurrent: string, newPassword?: string): Promise<AuthResponse> {
+    const token = this.getAccessToken();
+    const body = newPassword
+      ? { currentPassword: newPasswordOrCurrent, newPassword }
+      : { newPassword: newPasswordOrCurrent };
+    const response = await authAPI.post<AuthResponse>('/auth/change-password', body, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    this.storeAuthData(response.data);
+    return response.data;
+  }
+
+  private static storeAuthData(authData: AuthResponse, persist = true): void {
     const user: User = {
       email: authData.email,
-      name: authData.name
+      name: authData.name,
+      role: authData.role,
+      must_change_password: authData.must_change_password || false,
     };
 
-    // Store in localStorage (persistent) and sessionStorage (session-based)
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, authData.accessToken);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, authData.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    const storage = persist ? localStorage : sessionStorage;
+    // Clear the other storage to avoid stale tokens
+    if (persist) {
+      sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
+      sessionStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      sessionStorage.removeItem(this.USER_KEY);
+    } else {
+      localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      localStorage.removeItem(this.USER_KEY);
+    }
+    storage.setItem(this.ACCESS_TOKEN_KEY, authData.accessToken);
+    storage.setItem(this.REFRESH_TOKEN_KEY, authData.refreshToken);
+    storage.setItem(this.USER_KEY, JSON.stringify(user));
   }
 
   // Refresh token method
@@ -162,29 +231,6 @@ export class AuthService {
     }
   }
 
-  // Change password
-  static async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    const token = this.getAccessToken();
-    if (!token) {
-      throw new Error('No authentication token');
-    }
-
-    try {
-      await authAPI.post('/auth/change-password', {
-        currentPassword,
-        newPassword,
-        confirmNewPassword: newPassword
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-    } catch (error) {
-      console.error('Change password error:', error);
-      throw error;
-    }
-  }
-
   // Forgot password
   static async forgotPassword(email: string): Promise<string> {
     try {
@@ -209,6 +255,35 @@ export class AuthService {
       throw error;
     }
   }
+
+  static async getProfile(): Promise<User> {
+    const response = await authAPI.get<User>('/user/profile');
+    return response.data;
+  }
+
+  static async getMfaStatus(): Promise<MfaStatusResponse> {
+    const response = await authAPI.get<MfaStatusResponse>('/auth/mfa/status');
+    return response.data;
+  }
+
+  static async setupMfa(): Promise<MfaSetupResponse> {
+    const response = await authAPI.post<MfaSetupResponse>('/auth/mfa/setup');
+    return response.data;
+  }
+
+  static async confirmMfa(code: string): Promise<BackupCodesResponse> {
+    const response = await authAPI.post<BackupCodesResponse>('/auth/mfa/confirm', { code });
+    return response.data;
+  }
+
+  static async disableMfa(code: string, password: string): Promise<void> {
+    await authAPI.post('/auth/mfa/disable', { code, password });
+  }
+
+  static async regenerateBackupCodes(code: string): Promise<BackupCodesResponse> {
+    const response = await authAPI.post<BackupCodesResponse>('/auth/mfa/backup-codes/regenerate', { code });
+    return response.data;
+  }
 }
 
 // Setup axios interceptor for automatic token attachment
@@ -228,11 +303,20 @@ authAPI.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const requestUrl = String(originalRequest?.url || '');
+    const isAuthBootstrapRequest =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/mfa/login-verify') ||
+      requestUrl.includes('/auth/forgot-password') ||
+      requestUrl.includes('/auth/reset-password');
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthBootstrapRequest) {
       originalRequest._retry = true;
 
       try {
+        if (!AuthService.getRefreshToken()) {
+          throw new Error('No refresh token available');
+        }
         await AuthService.refreshToken();
         const newToken = AuthService.getAccessToken();
         

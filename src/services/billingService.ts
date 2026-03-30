@@ -42,6 +42,13 @@ export class BillingService {
       billing_cycle_days: 30
     };
 
+    const billingPeriod = this.calculateBillingPeriod(
+      invoice.billing_configuration.start_payment_date,
+      invoice.billing_configuration.billing_cycle_days
+    );
+
+    invoice.billing_period = billingPeriod;
+
     invoice.source_data = {
       tx_count: txCount,
       terminal_count: terminalCount,
@@ -90,5 +97,30 @@ export class BillingService {
     };
 
     return invoice;
+  }
+
+  // Fonction qui calcule la période de facturation
+  static calculateBillingPeriod(startPaymentDate: string, billingCycleDays: number = 30) {
+    const start = new Date(startPaymentDate);
+
+    const periodStart = new Date(start);
+    const periodEnd = new Date(start);
+    periodEnd.setDate(periodEnd.getDate() + billingCycleDays - 1);//Le jour de départ est inclus
+
+
+    const invoiceDate = new Date(periodEnd);
+    invoiceDate.setDate(invoiceDate.getDate() + 1);//Date de facture = jour suivant la fin de période
+
+    const dueDate = new Date(invoiceDate);
+    dueDate.setDate(dueDate.getDate() + 15);// Échéance = 15 jours après la facture
+
+    const formatDate = (date: Date) => date.toISOString().split("T")[0];
+
+    return {
+        period_start: formatDate(periodStart),
+        period_end: formatDate(periodEnd),
+        invoice_date: formatDate(invoiceDate),
+        due_date: formatDate(dueDate)
+    };
   }
 }

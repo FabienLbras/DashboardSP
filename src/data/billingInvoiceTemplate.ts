@@ -32,13 +32,14 @@ export const billingInvoiceTemplate: BillingInvoice = {
     terminals_by_location: []
   },
 
-  pricing: {
-    fixed_fee: 0,
-    price_per_tx: 0,
-    price_per_terminal: 0,
-    tax_rate: 0,
-    discount: 0
-  },
+    pricing: {
+        fixed_fee: 0,
+        included_tx_count: 0,
+        extra_tx_unit_price: 0,
+        price_per_terminal: 0,
+        tax_rate: 0,
+        discount: 0
+},
 
   invoice_lines: [
     {

@@ -54,46 +54,55 @@ export class BillingService {
       terminal_count: terminalCount,
       terminals_by_location: terminalsByLocation
     };
-
     invoice.pricing = {
-      fixed_fee: 100,
-      price_per_tx: 0.02,
-      price_per_terminal: 10,
-      tax_rate: 0.21,
-      discount: 0
-    };
+  fixed_fee: 100,
+  included_tx_count: 1000,
+  extra_tx_unit_price: 0.02,
+  price_per_terminal: 10,
+  tax_rate: 0.21,
+  discount: 0
+};
 
-    const txAmount = invoice.source_data.tx_count * invoice.pricing.price_per_tx;
-    const terminalAmount = invoice.source_data.terminal_count * invoice.pricing.price_per_terminal;
+const extraTxCount = Math.max(
+  0,
+  invoice.source_data.tx_count - invoice.pricing.included_tx_count
+);
 
-    invoice.invoice_lines = [
-      {
-        description: "Fixed Fee",
-        quantity: 1,
-        unit_price: invoice.pricing.fixed_fee,
-        amount: invoice.pricing.fixed_fee
-      },
-      {
-        description: "Transaction Fees",
-        quantity: invoice.source_data.tx_count,
-        unit_price: invoice.pricing.price_per_tx,
-        amount: txAmount
-      },
-      {
-        description: "Terminal Fees",
-        quantity: invoice.source_data.terminal_count,
-        unit_price: invoice.pricing.price_per_terminal,
-        amount: terminalAmount
-      }
-    ];
+const extraTxAmount = extraTxCount * invoice.pricing.extra_tx_unit_price;
 
-    const subtotal = invoice.invoice_lines.reduce((sum, line) => sum + line.amount, 0);
-    const tax = subtotal * invoice.pricing.tax_rate;
+const terminalAmount =
+  invoice.source_data.terminal_count * invoice.pricing.price_per_terminal;
+
+invoice.invoice_lines = [
+  {
+    description: `Fixed monthly fee including ${invoice.pricing.included_tx_count} transactions`,
+    quantity: 1,
+    unit_price: invoice.pricing.fixed_fee,
+    amount: invoice.pricing.fixed_fee
+  },
+  {
+    description: "Extra transaction fees",
+    quantity: extraTxCount,
+    unit_price: invoice.pricing.extra_tx_unit_price,
+    amount: extraTxAmount
+  },
+  {
+    description: "Terminal fees",
+    quantity: invoice.source_data.terminal_count,
+    unit_price: invoice.pricing.price_per_terminal,
+    amount: terminalAmount
+  }
+];
+
+const subtotal = invoice.invoice_lines.reduce((sum, line) => sum + line.amount, 0);
+const taxableAmount = subtotal - invoice.pricing.discount;
+const tax = taxableAmount * invoice.pricing.tax_rate;
+    
 
     invoice.totals = {
       subtotal,
       tax_total: tax,
-      grand_total: subtotal + tax
+      grand_total: taxableAmount + tax
     };
 
     return invoice;

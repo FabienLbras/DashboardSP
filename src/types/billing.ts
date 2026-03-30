@@ -32,7 +32,8 @@ export interface SourceData {
 
 export interface Pricing {
   fixed_fee: number;
-  price_per_tx: number;
+  included_tx_count: number;
+  extra_tx_unit_price: number;
   price_per_terminal: number;
   tax_rate: number;
   discount: number;

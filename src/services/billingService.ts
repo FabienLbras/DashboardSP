@@ -11,7 +11,6 @@ export class BillingService {
     const terminalsResponse = await TerminalService.list();
     const terminals = terminalsResponse.items;
 
-    const txCount = transactions.length;
     const terminalCount = terminals.length;
 
     const terminalsByLocationMap: Record<string, number> = {};
@@ -48,6 +47,17 @@ export class BillingService {
     );
 
     invoice.billing_period = billingPeriod;
+
+    const periodStart = new Date(invoice.billing_period.period_start);
+const periodEnd = new Date(invoice.billing_period.period_end);
+periodEnd.setHours(23, 59, 59, 999);
+
+const filteredTransactions = transactions.filter((transaction) => {
+  const transactionDate = new Date(transaction.createdOn);
+  return transactionDate >= periodStart && transactionDate <= periodEnd;
+});
+
+const txCount = filteredTransactions.length;
 
     invoice.source_data = {
       tx_count: txCount,

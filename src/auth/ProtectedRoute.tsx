@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ permission, children }: ProtectedRouteProps) => {
   const user = useUser();
 
-  if (!user || !checkPermission(user.role, permission)) {
+  if (!user || !user.role || !checkPermission(user.role, permission)) {
     return (
       <div className="p-6 text-center">
         <h2 className="text-xl font-semibold">Access Denied</h2>

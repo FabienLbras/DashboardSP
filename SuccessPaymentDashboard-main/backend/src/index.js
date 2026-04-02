@@ -219,7 +219,7 @@ const ROLE_PERMISSIONS = {
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// ─── Schema ───────────────────────────────────────────────────────────────────
+// ─── Schema 
 async function ensureSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -389,7 +389,7 @@ async function ensureSchema() {
     )
   `);
 
-  // ── Invoices (billing automation) ────────────────────────────────────────────
+  // ── Invoices (billing automation) 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS invoices (
       id SERIAL PRIMARY KEY,
@@ -409,7 +409,13 @@ async function ensureSchema() {
     )
   `);
 
-  // ── Ensure default super_admin exists ────────────────────────────────────────
+  // ── next_billing_date pour les clients 
+  await pool.query(`
+      ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS next_billing_date DATE
+  `);
+
+  // ── Ensure default super_admin exists 
   const bcryptMod = require('bcryptjs');
   const defaultHash = await bcryptMod.hash('Admin1234!', 10);
   await pool.query(`
@@ -1329,6 +1335,14 @@ async function generateInvoicesForAllCustomers() {
 
     for (const customer of customers) {
       try {
+        const today = new Date().toISOString().split('T')[0];
+
+        // Vérifier si c'est le bon jour pour facturer ce client
+        if (customer.next_billing_date && customer.next_billing_date > today) {
+          console.log(`[BILLING] Skipping ${customer.name} — next billing: ${customer.next_billing_date}`);
+          continue;
+        }
+
         const { rows: lastInvoice } = await pool.query(
           'SELECT period_end FROM invoices WHERE customer_id = $1 ORDER BY period_end DESC LIMIT 1',
           [customer.id]
@@ -1387,7 +1401,17 @@ async function generateInvoicesForAllCustomers() {
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',$11)
         `, [customer.id, periodStart, periodEnd, fmt(invoiceDate), fmt(dueDate), txCount, terminalCount, subtotal, tax, grandTotal, JSON.stringify(invoiceData)]);
 
-        console.log(`[BILLING] Invoice generated for customer ${customer.name}`);
+        //  Mettre à jour la prochaine date de facturation (aujourd'hui + 30 jours)
+        const nextBilling = new Date(today);
+        nextBilling.setDate(nextBilling.getDate() + 30);
+        const nextBillingDate = nextBilling.toISOString().split('T')[0];
+
+        await pool.query(
+          'UPDATE customers SET next_billing_date = $1 WHERE id = $2',
+          [nextBillingDate, customer.id]
+        );
+
+        console.log(`[BILLING] Invoice generated for customer ${customer.name} — next billing: ${nextBillingDate}`);
       } catch (err) {
         console.error(`[BILLING] Error for customer ${customer.id}:`, err.message);
       }
@@ -1398,9 +1422,9 @@ async function generateInvoicesForAllCustomers() {
   }
 }
 
-//  Cron job — tous les 30 jours à minuit
-cron.schedule('0 0 */30 * *', () => {
-  console.log('[CRON] Running billing job...');
+// Cron job — tous les jours à minuit
+cron.schedule('0 0 * * *', () => {
+  console.log('[CRON] Checking billing...');
   generateInvoicesForAllCustomers();
 });
 

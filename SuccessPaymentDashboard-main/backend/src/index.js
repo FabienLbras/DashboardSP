@@ -1398,11 +1398,14 @@ async function generateInvoicesForAllCustomers() {
   }
 }
 
-// ✅ Cron job — tous les 30 jours à minuit
+//  Cron job — tous les 30 jours à minuit
 cron.schedule('0 0 */30 * *', () => {
   console.log('[CRON] Running billing job...');
   generateInvoicesForAllCustomers();
 });
+
+ //  Test immédiat au démarrage  generer une facture automatiquement pour tous les clients actif
+//generateInvoicesForAllCustomers(); 
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 async function start() {

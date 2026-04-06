@@ -1429,7 +1429,7 @@ cron.schedule('0 0 * * *', () => {
 });
 
  //  Test immédiat au démarrage  generer une facture automatiquement pour tous les clients actif
-//generateInvoicesForAllCustomers(); 
+   //generateInvoicesForAllCustomers(); 
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 async function start() {

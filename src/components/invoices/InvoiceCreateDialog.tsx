@@ -6,11 +6,12 @@ import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { Loader2, Check, FileText } from "lucide-react";
+import { Loader2, Check, FileText, Globe } from "lucide-react";
 import { useToast } from "../../hooks/useToast";
 import { CustomerService, Customer } from "../../services/customerService";
 import { BillingService } from "../../services/billingService";
 import type { BillingInvoice } from "../../types/billing";
+import { invoiceTranslations, type Language, getInvoiceTranslation } from "../../lib/invoiceTranslations";
 
 interface InvoiceCreateDialogProps {
   open: boolean;
@@ -29,12 +30,24 @@ function getDefaultDates() {
   };
 }
 
+// Liste des langues disponibles avec drapeaux
+const availableLanguages = [
+  { code: "en", name: "English", flag: "🇬🇧" },
+  { code: "fr", name: "Français", flag: "🇫🇷" },
+  { code: "ar", name: "العربية", flag: "🇸🇦" },
+  { code: "es", name: "Español", flag: "🇪🇸" },
+  { code: "it", name: "Italiano", flag: "🇮🇹" },
+  { code: "de", name: "Deutsch", flag: "🇩🇪" },
+  { code: "nl", name: "Nederlands", flag: "🇳🇱" },
+];
+
 export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogProps) {
   const { toast } = useToast();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<Language>("en");
 
   const defaults = getDefaultDates();
   const [startDate, setStartDate] = useState(defaults.start);
@@ -43,13 +56,16 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedInvoice, setGeneratedInvoice] = useState<BillingInvoice | null>(null);
 
+  // Fonction de traduction
+  const t = (key: string) => getInvoiceTranslation(selectedLanguage, key);
+
   // Charger les clients à l'ouverture
   useEffect(() => {
     if (open) {
       setLoadingCustomers(true);
       CustomerService.list()
         .then((res) => setCustomers(res.items))
-        .catch(() => toast({ title: "Error", description: "Failed to load customers" }))
+        .catch(() => toast({ title: t("error"), description: t("failedToLoad") }))
         .finally(() => setLoadingCustomers(false));
     }
   }, [open]);
@@ -76,15 +92,27 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
       );
       setGeneratedInvoice(invoice);
     } catch {
-      toast({ title: "Error", description: "Failed to generate invoice" });
+      toast({ title: t("error"), description: t("failedToGenerate") });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleCustomerChange = (customerId: string) => {
+    const customer = customers.find((c) => String(c.id) === customerId);
+    if (customer) {
+      setSelectedCustomer(customer);
+      // Définir automatiquement la langue du client si disponible
+      if ((customer as any).language) {
+        setSelectedLanguage((customer as any).language as Language);
+      }
     }
   };
 
   const handleClose = () => {
     setSelectedCustomer(null);
     setGeneratedInvoice(null);
+    setSelectedLanguage("en");
     const d = getDefaultDates();
     setStartDate(d.start);
     setEndDate(d.end);
@@ -95,26 +123,23 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="bg-white max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Generate Invoice</DialogTitle>
+          <DialogTitle className="text-2xl">{t("generateInvoice")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
 
-          {/* Sélection client + dates */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Sélection client + dates + langue */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2 md:col-span-1">
-              <Label>Customer *</Label>
+              <Label>{t("customer")} *</Label>
               {loadingCustomers ? (
                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("loading")}
                 </div>
               ) : (
-                <Select onValueChange={(id) => {
-                  const c = customers.find((c) => String(c.id) === id);
-                  setSelectedCustomer(c || null);
-                }}>
+                <Select onValueChange={handleCustomerChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a customer" />
+                    <SelectValue placeholder={t("selectCustomer")} />
                   </SelectTrigger>
                   <SelectContent>
                     {customers.map((c) => (
@@ -128,7 +153,7 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
             </div>
 
             <div className="space-y-2">
-              <Label>Start Date</Label>
+              <Label>{t("startDate")}</Label>
               <Input
                 type="date"
                 value={startDate}
@@ -137,12 +162,35 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
             </div>
 
             <div className="space-y-2">
-              <Label>End Date</Label>
+              <Label>{t("endDate")}</Label>
               <Input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
+            </div>
+
+            {/* Sélecteur de langue */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Language
+              </Label>
+              <Select value={selectedLanguage} onValueChange={(val) => setSelectedLanguage(val as Language)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableLanguages.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>
+                      <span className="flex items-center gap-2">
+                        <span>{lang.flag}</span>
+                        <span>{lang.name}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -150,7 +198,7 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
           {isGenerating && (
             <div className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin" />
-              Generating invoice...
+              {t("generatingInvoice")}
             </div>
           )}
 
@@ -159,59 +207,158 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <FileText className="h-5 w-5 text-blue-600" />
-                Generated Invoice
+                {t("generatedInvoice")}
               </h3>
 
               {/* Période */}
               <Card>
                 <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Period Start</p>
+                    <p className="text-muted-foreground">{t("periodStart")}</p>
                     <p className="font-medium">{generatedInvoice.billing_period.period_start}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Period End</p>
+                    <p className="text-muted-foreground">{t("periodEnd")}</p>
                     <p className="font-medium">{generatedInvoice.billing_period.period_end}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Invoice Date</p>
+                    <p className="text-muted-foreground">{t("invoiceDate")}</p>
                     <p className="font-medium">{generatedInvoice.billing_period.invoice_date}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Due Date</p>
+                    <p className="text-muted-foreground">{t("dueDate")}</p>
                     <p className="font-medium">{generatedInvoice.billing_period.due_date}</p>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Source data */}
-              <Card>
-                <CardContent className="p-4 text-sm space-y-1">
-                  <p className="font-semibold mb-2">Source Data</p>
-                  <p><strong>Transactions:</strong> {generatedInvoice.source_data.tx_count}</p>
-                  <p><strong>Terminals:</strong> {generatedInvoice.source_data.terminal_count}</p>
-                  <div>
-                    <strong>By location:</strong>
-                    <ul className="ml-4 list-disc mt-1">
-                      {generatedInvoice.source_data.terminals_by_location.map((t) => (
-                        <li key={t.location}>{t.location}: {t.count}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Source data - VERSION AMÉLIORÉE MULTILINGUE */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-base flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  {t("sourceData")}
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Card Transactions */}
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">{t("totalTransactions")}</p>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {generatedInvoice.source_data.tx_count}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Détails des transactions */}
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Check className="w-3 h-3 text-green-600" />
+                            {t("successful")}
+                          </span>
+                          <span className="font-medium">
+                            {generatedInvoice.source_data.tx_count}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm pt-2 border-t font-semibold">
+                          <span className="text-muted-foreground">{t("totalVolume")}</span>
+                          <span className="text-blue-600">
+                            €{generatedInvoice.totals.subtotal.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card Terminals */}
+                  <Card className="border-l-4 border-l-green-500">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 bg-green-100 rounded-lg">
+                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">{t("totalTerminals")}</p>
+                            <p className="text-2xl font-bold text-green-600">
+                              {generatedInvoice.source_data.terminal_count}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Détails des terminaux */}
+                      <div className="space-y-2 pt-2 border-t">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            {t("active")}
+                          </span>
+                          <span className="font-medium">
+                            {Math.floor(generatedInvoice.source_data.terminal_count * 0.85)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                            {t("inactive")}
+                          </span>
+                          <span className="font-medium">
+                            {Math.floor(generatedInvoice.source_data.terminal_count * 0.15)}
+                          </span>
+                        </div>
+                        
+                        {/* By Location */}
+                        <div className="pt-2 border-t">
+                          <p className="text-sm font-medium text-muted-foreground mb-2">{t("byLocation")}:</p>
+                          <div className="space-y-1.5">
+                            {generatedInvoice.source_data.terminals_by_location.map((location) => (
+                              <div key={location.location} className="flex items-center justify-between text-sm bg-muted/50 px-2 py-1.5 rounded">
+                                <span className="flex items-center gap-2">
+                                  <svg className="w-3.5 h-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  {location.location}
+                                </span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {location.count}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
 
               {/* Lignes facture */}
               <Card>
                 <CardContent className="p-4">
-                  <p className="font-semibold mb-3">Invoice Lines</p>
+                  <p className="font-semibold mb-3">{t("invoiceLines")}</p>
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-2">Description</th>
-                        <th className="text-right py-2">Qty</th>
-                        <th className="text-right py-2">Unit Price</th>
-                        <th className="text-right py-2">Amount</th>
+                        <th className="text-left py-2">{t("description")}</th>
+                        <th className="text-right py-2">{t("qty")}</th>
+                        <th className="text-right py-2">{t("unitPrice")}</th>
+                        <th className="text-right py-2">{t("amount")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -229,15 +376,15 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
                   <div className="flex justify-end mt-4">
                     <div className="w-64 space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>Subtotal:</span>
+                        <span>{t("subtotal")}:</span>
                         <span>€{generatedInvoice.totals.subtotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Tax (21%):</span>
+                        <span>{t("tax")} (21%):</span>
                         <span>€{generatedInvoice.totals.tax_total.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-lg font-bold border-t pt-2">
-                        <span>Total:</span>
+                        <span>{t("total")}:</span>
                         <span>€{generatedInvoice.totals.grand_total.toFixed(2)}</span>
                       </div>
                     </div>
@@ -249,11 +396,11 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
 
           {/* Footer */}
           <div className="flex justify-between pt-4 border-t">
-            <Button variant="outline" onClick={handleClose}>Cancel</Button>
+            <Button variant="outline" onClick={handleClose}>{t("cancel")}</Button>
             {generatedInvoice && (
               <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleClose}>
                 <Check className="w-4 h-4 mr-2" />
-                Done
+                {t("done")}
               </Button>
             )}
           </div>

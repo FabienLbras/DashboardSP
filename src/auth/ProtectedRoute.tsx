@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { useUser } from "../context/UserContext";
+import { useAuth } from "../context/AuthContext"; 
 import { checkPermission } from "./checkPermission";
 
 interface ProtectedRouteProps {
@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ permission, children }: ProtectedRouteProps) => {
-  const user = useUser();
+  const { user } = useAuth(); // ← Changé de useUser() à useAuth()
 
   if (!user || !user.role || !checkPermission(user.role, permission)) {
     return (

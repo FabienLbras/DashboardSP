@@ -45,6 +45,7 @@ const COLORS = ['hsl(218, 89%, 51%)', 'hsl(28, 95%, 58%)', '#8884d8', '#82ca9d',
 
 export default function Home() {
   const { user } = useAuth();
+  console.log("👤 User role:", user?.role);
   const navigate = useNavigate();
   const { t } = useLanguage();
   const canGenerateReports = hasPermission(user?.role, APP_PERMISSIONS.GENERATE_REPORTS);

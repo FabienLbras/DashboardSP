@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
@@ -1509,6 +1510,93 @@ app.post('/transaction-event', async (req, res) => {
   } catch (err) {
     console.error('[WEBHOOK] /transaction-event error:', err?.message);
     return res.status(500).json({ ok: false, error: 'Internal server error' });
+  }
+});
+
+// ── Zoho Books proxy ──────────────────────────────────────────────────────────
+
+const ZOHO_ACCOUNTS_URL = 'https://accounts.zoho.eu/oauth/v2/token';
+const ZOHO_API_BASE     = 'https://www.zohoapis.eu/books/v3';
+
+let _zohoToken       = null;
+let _zohoTokenExpiry = 0;
+
+async function getZohoAccessToken() {
+  const now = Date.now();
+  if (_zohoToken && now < _zohoTokenExpiry) return _zohoToken;
+
+  const { ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN } = process.env;
+  if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
+    throw new Error('Zoho OAuth env vars missing: ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN');
+  }
+
+  const params = new URLSearchParams({
+    grant_type:    'refresh_token',
+    client_id:     ZOHO_CLIENT_ID,
+    client_secret: ZOHO_CLIENT_SECRET,
+    refresh_token: ZOHO_REFRESH_TOKEN,
+  });
+
+  const res  = await fetch(`${ZOHO_ACCOUNTS_URL}?${params.toString()}`, { method: 'POST' });
+  const data = await res.json();
+
+  if (!res.ok || !data.access_token) {
+    throw new Error(`Zoho token refresh failed (${res.status}): ${JSON.stringify(data)}`);
+  }
+
+  _zohoToken       = data.access_token;
+  _zohoTokenExpiry = now + ((data.expires_in ?? 3600) - 300) * 1000;
+  return _zohoToken;
+}
+
+// POST /api/zoho/token
+app.post('/api/zoho/token', async (_req, res) => {
+  try {
+    const access_token = await getZohoAccessToken();
+    res.json({ access_token });
+  } catch (err) {
+    console.error('[/api/zoho/token]', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// POST /api/zoho/invoices
+app.post('/api/zoho/invoices', async (req, res) => {
+  try {
+    const { ZOHO_ORGANIZATION_ID } = process.env;
+    if (!ZOHO_ORGANIZATION_ID) {
+      return res.status(500).json({ error: 'ZOHO_ORGANIZATION_ID is not configured' });
+    }
+
+    const accessToken = await getZohoAccessToken();
+
+    const zohoRes = await fetch(
+      `${ZOHO_API_BASE}/invoices?organization_id=${ZOHO_ORGANIZATION_ID}`,
+      {
+        method:  'POST',
+        headers: {
+          Authorization:  `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json;charset=UTF-8',
+        },
+        body: JSON.stringify(req.body),
+      }
+    );
+
+    const data = await zohoRes.json();
+
+    if (!zohoRes.ok) {
+      console.error('[/api/zoho/invoices] Zoho error', zohoRes.status, data);
+      return res.status(zohoRes.status).json(data);
+    }
+    if (data.code !== 0) {
+      console.error('[/api/zoho/invoices] Zoho Books error', data);
+      return res.status(422).json(data);
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('[/api/zoho/invoices]', err.message);
+    res.status(502).json({ error: err.message });
   }
 });
 

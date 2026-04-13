@@ -6,10 +6,11 @@ import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { Loader2, Check, FileText, Globe, RefreshCw } from "lucide-react";
+import { Loader2, Check, FileText, Globe, RefreshCw, BookOpen } from "lucide-react";
 import { useToast } from "../../hooks/useToast";
 import { CustomerService, Customer } from "../../services/customerService";
 import { BillingService } from "../../services/billingService";
+import { createZohoInvoice } from "../../services/zohoBookService";
 import type { BillingInvoice } from "../../types/billing";
 import { type Language, getInvoiceTranslation } from "../../lib/invoiceTranslations";
 
@@ -56,6 +57,8 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedInvoice, setGeneratedInvoice] = useState<BillingInvoice | null>(null);
+  const [isSyncingZoho, setIsSyncingZoho] = useState(false);
+  const [zohoSyncDone, setZohoSyncDone] = useState(false);
 
   const loadCustomers = () => {
     setLoadingCustomers(true);
@@ -90,6 +93,7 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
     console.log("[InvoiceDialog] handleGenerate START — customer:", customer.id, customer.name, "dates:", startDate, "→", endDate);
     setIsGenerating(true);
     setGeneratedInvoice(null);
+    setZohoSyncDone(false);
     try {
       const invoice = await BillingService.generateInvoice(
         {
@@ -127,10 +131,35 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
     }
   };
 
+  const handleZohoSync = async () => {
+    if (!generatedInvoice || !selectedCustomer) return;
+    const customerZohoId = selectedCustomer.zoho_id ?? String(selectedCustomer.id);
+    setIsSyncingZoho(true);
+    try {
+      const result = await createZohoInvoice(generatedInvoice, customerZohoId);
+      const invoiceRef = result.invoice?.invoice_number ?? "";
+      toast({
+        title: "Synchronisé avec Zoho Books",
+        description: invoiceRef ? `Facture ${invoiceRef} créée avec succès.` : "Facture créée avec succès.",
+      });
+      setZohoSyncDone(true);
+    } catch (err: any) {
+      console.error("[ZohoSync] error:", err);
+      toast({
+        title: "Échec de la synchronisation Zoho",
+        description: err?.message ?? "Une erreur est survenue.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingZoho(false);
+    }
+  };
+
   const handleClose = () => {
     setSelectedCustomer(null);
     setSelectedCustomerId("");
     setGeneratedInvoice(null);
+    setZohoSyncDone(false);
     setSelectedLanguage("en");
     const d = getDefaultDates();
     setStartDate(d.start);
@@ -488,10 +517,39 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
           <div className="flex justify-between pt-4 border-t">
             <Button variant="outline" onClick={handleClose}>{t("cancel")}</Button>
             {generatedInvoice && (
-              <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleClose}>
-                <Check className="w-4 h-4 mr-2" />
-                {t("done")}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className={
+                    zohoSyncDone
+                      ? "border-green-500 text-green-700 hover:bg-green-50"
+                      : "border-[#E8442B] text-[#E8442B] hover:bg-[#E8442B]/5"
+                  }
+                  onClick={handleZohoSync}
+                  disabled={isSyncingZoho || zohoSyncDone}
+                >
+                  {isSyncingZoho ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Synchronisation…
+                    </>
+                  ) : zohoSyncDone ? (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Synchronisé
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      Sync Zoho Books
+                    </>
+                  )}
+                </Button>
+                <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleClose}>
+                  <Check className="w-4 h-4 mr-2" />
+                  {t("done")}
+                </Button>
+              </div>
             )}
           </div>
         </div>

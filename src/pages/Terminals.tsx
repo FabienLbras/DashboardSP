@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -6,7 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
-import { Search, Plus, Wifi, WifiOff, QrCode, KeyRound, Loader2, AlertCircle, MoreHorizontal, Trash2, Edit } from "lucide-react";
+import { Search, Plus, Wifi, WifiOff, QrCode, KeyRound, Loader2, AlertCircle, MoreHorizontal, Trash2, Edit, Activity } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { QRCodeSVG } from "qrcode.react";
@@ -19,6 +19,24 @@ import { useToast } from "../hooks/useToast";
 import { TerminalService, Terminal } from "../services/terminalService";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
+type PaxTransaction = {
+  id: number;
+  uti: string;
+  status: string | null;
+  transaction_type: string | null;
+  amount_cents: number | null;
+  auth_code: string | null;
+  reason: string | null;
+  transaction_source: string | null;
+  trans_cancelled: boolean | null;
+  tid: string | null;
+  terminal_sn: string | null;
+  pan: string | null;
+  card_type: string | null;
+  transaction_date: string | null;
+  created_at: string;
+};
 
 type TerminalForm = { name: string; serial_number: string; location: string; model: string; status: "active" | "inactive" };
 const emptyForm: TerminalForm = { name: "", serial_number: "", location: "", model: "", status: "active" };
@@ -50,6 +68,37 @@ export default function Terminals() {
   // QR code dialog
   const [qrTerminal, setQrTerminal] = useState<{ id: number; name: string; api_key: string } | null>(null);
   const [generatingKey, setGeneratingKey] = useState<number | null>(null);
+
+  // PAX transactions monitoring
+  const [paxTxs, setPaxTxs] = useState<PaxTransaction[]>([]);
+  const [paxLoading, setPaxLoading] = useState(true);
+  const [paxError, setPaxError] = useState("");
+  const paxIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const loadPaxTxs = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/admin/terminal-transactions`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setPaxTxs(data.items ?? []);
+      setPaxError("");
+    } catch (e: any) {
+      setPaxError(e?.message || "Failed to load PAX transactions");
+    } finally {
+      setPaxLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPaxTxs();
+    paxIntervalRef.current = setInterval(loadPaxTxs, 5000);
+    return () => {
+      if (paxIntervalRef.current) clearInterval(paxIntervalRef.current);
+    };
+  }, [loadPaxTxs]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -163,6 +212,17 @@ export default function Terminals() {
   const getStatusBadge = (status: string) => {
     if (status === "active") return <Badge className="bg-green-100 text-green-800"><Wifi className="h-3 w-3 mr-1" />{t("active")}</Badge>;
     return <Badge className="bg-red-100 text-red-800"><WifiOff className="h-3 w-3 mr-1" />{t("inactive")}</Badge>;
+  };
+
+  const getPaxStatusBadge = (status: string | null) => {
+    if (!status) return <Badge variant="outline">—</Badge>;
+    const map: Record<string, string> = {
+      APPROVED:  "bg-green-100 text-green-800",
+      DECLINED:  "bg-red-100 text-red-800",
+      CANCELLED: "bg-yellow-100 text-yellow-800",
+      ERROR:     "bg-orange-100 text-orange-800",
+    };
+    return <Badge className={map[status] ?? "bg-gray-100 text-gray-700"}>{status}</Badge>;
   };
 
   return (
@@ -402,6 +462,88 @@ export default function Terminals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PAX Terminal Transactions */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-600" />
+                <div>
+                  <CardTitle>Live PAX Transactions</CardTitle>
+                  <CardDescription>
+                    {paxLoading
+                      ? "Loading…"
+                      : `${paxTxs.length} transaction${paxTxs.length !== 1 ? "s" : ""} — auto-refresh every 5 s`}
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs text-green-700 border-green-300">
+                <span className="inline-block h-2 w-2 rounded-full bg-green-500 mr-1 animate-pulse" />
+                Live
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {paxLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                <span className="text-muted-foreground">Loading…</span>
+              </div>
+            ) : paxError ? (
+              <div className="flex items-center gap-2 p-4 text-red-700 bg-red-50 rounded-md">
+                <AlertCircle className="h-5 w-5" />{paxError}
+              </div>
+            ) : paxTxs.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">No PAX transactions received yet.</div>
+            ) : (
+              <div className="max-h-[480px] overflow-y-auto overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead>UTI</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Card</TableHead>
+                      <TableHead>PAN</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>TID</TableHead>
+                      <TableHead>Terminal SN</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paxTxs.map((tx) => (
+                      <TableRow key={tx.id}>
+                        <TableCell className="font-mono text-xs max-w-[120px] truncate" title={tx.uti}>{tx.uti}</TableCell>
+                        <TableCell>{getPaxStatusBadge(tx.status)}</TableCell>
+                        <TableCell className="text-sm">{tx.transaction_type ?? "—"}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {tx.amount_cents != null
+                            ? `${(tx.amount_cents / 100).toFixed(2)} €`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm">{tx.card_type ?? "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{tx.pan ?? "—"}</TableCell>
+                        <TableCell className="text-sm">{tx.transaction_source ?? "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{tx.tid ?? "—"}</TableCell>
+                        <TableCell className="font-mono text-xs">{tx.terminal_sn ?? "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {tx.transaction_date
+                            ? new Date(tx.transaction_date).toLocaleString()
+                            : new Date(tx.created_at).toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* QR Code Dialog */}
       <Dialog open={!!qrTerminal} onOpenChange={(o) => !o && setQrTerminal(null)}>

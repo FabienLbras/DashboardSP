@@ -333,6 +333,11 @@ async function ensureSchema() {
       ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `);
   await pool.query(`
+    ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS zoho_id VARCHAR(100)
+  `);
+
+  await pool.query(`
     ALTER TABLE terminals
       ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `);
@@ -409,10 +414,34 @@ async function ensureSchema() {
     )
   `);
 
-  // ── next_billing_date pour les clients 
+  // ── next_billing_date pour les clients
   await pool.query(`
       ALTER TABLE customers
       ADD COLUMN IF NOT EXISTS next_billing_date DATE
+  `);
+
+  // ── Terminal transactions (PAX webhook)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS terminal_transactions (
+      id               SERIAL PRIMARY KEY,
+      uti              VARCHAR(100) UNIQUE NOT NULL,
+      status           VARCHAR(20),
+      transaction_type VARCHAR(20),
+      amount_cents     INTEGER,
+      auth_code        VARCHAR(50),
+      reason           VARCHAR(50),
+      transaction_source VARCHAR(20),
+      trans_cancelled  BOOLEAN,
+      tid              VARCHAR(50),
+      mid              VARCHAR(50),
+      pan              VARCHAR(20),
+      card_type        VARCHAR(100),
+      aid              VARCHAR(50),
+      transaction_date TIMESTAMP,
+      terminal_sn      VARCHAR(50),
+      timestamp        TIMESTAMP,
+      created_at       TIMESTAMP DEFAULT NOW()
+    )
   `);
 
   // ── Ensure default super_admin exists 
@@ -1015,10 +1044,13 @@ app.get('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, 
 });
 
 app.post('/api/admin/customers', requireAuth, requireSuperAdmin, async (req, res) => {
-  const { name, email, phone, address } = req.body;
+  const { name, email, phone, address, zoho_id } = req.body;
   if (!name || !email) return res.status(400).json({ message: 'Name and email required' });
   try {
-    const { rows } = await pool.query('INSERT INTO customers (name, email, phone, address) VALUES ($1,$2,$3,$4) RETURNING *', [name, email, phone || null, address || null]);
+    const { rows } = await pool.query(
+      'INSERT INTO customers (name, email, phone, address, zoho_id) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [name, email, phone || null, address || null, zoho_id || null]
+    );
     await cacheDel('customers:list');
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -1028,11 +1060,11 @@ app.post('/api/admin/customers', requireAuth, requireSuperAdmin, async (req, res
 });
 
 app.put('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, res) => {
-  const { name, email, phone, address, status } = req.body;
+  const { name, email, phone, address, status, zoho_id } = req.body;
   try {
     const { rows } = await pool.query(
-      'UPDATE customers SET name=$1, email=$2, phone=$3, address=$4, status=$5, updated_at=NOW() WHERE id=$6 RETURNING *',
-      [name, email, phone || null, address || null, status || 'active', req.params.id]
+      'UPDATE customers SET name=$1, email=$2, phone=$3, address=$4, status=$5, zoho_id=$6, updated_at=NOW() WHERE id=$7 RETURNING *',
+      [name, email, phone || null, address || null, status || 'active', zoho_id ?? null, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ message: 'Customer not found' });
     await cacheDel('customers:list');
@@ -1317,6 +1349,21 @@ app.post('/api/admin/invoices', requireAuth, requireSuperAdmin, async (req, res)
   } catch (err) { console.error(err); res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
+// ─── Terminal transactions (PAX webhook history) ──────────────────────────────
+app.get('/api/admin/terminal-transactions', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT * FROM terminal_transactions
+      ORDER BY transaction_date DESC NULLS LAST
+      LIMIT 100
+    `);
+    res.json({ items: rows, total: rows.length });
+  } catch (err) {
+    console.error('[ADMIN] terminal-transactions:', err?.message);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
   try {
@@ -1421,6 +1468,49 @@ async function generateInvoicesForAllCustomers() {
     console.error('[BILLING] Fatal error:', err.message);
   }
 }
+
+// ─── Webhook PAX terminal transactions ───────────────────────────────────────
+app.post('/transaction-event', async (req, res) => {
+  const p = req.body || {};
+  const uti = p.uti;
+
+  if (!uti) {
+    return res.status(400).json({ ok: false, error: 'Missing uti' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO terminal_transactions
+         (uti, status, transaction_type, amount_cents, auth_code, reason,
+          transaction_source, trans_cancelled, tid, mid, pan, card_type,
+          aid, transaction_date, terminal_sn, timestamp)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+       ON CONFLICT (uti) DO NOTHING`,
+      [
+        uti,
+        p.status           ?? null,
+        p.transaction_type ?? null,
+        p.amount_cents     != null ? parseInt(p.amount_cents, 10) : null,
+        p.auth_code        ?? null,
+        p.reason           ?? null,
+        p.transaction_source ?? null,
+        p.trans_cancelled  != null ? Boolean(p.trans_cancelled) : null,
+        p.tid              ?? null,
+        p.mid              ?? null,
+        p.pan              ?? null,
+        p.card_type        ?? null,
+        p.aid              ?? null,
+        p.transaction_date ?? null,
+        p.terminal_sn      ?? null,
+        p.timestamp        ?? null,
+      ]
+    );
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('[WEBHOOK] /transaction-event error:', err?.message);
+    return res.status(500).json({ ok: false, error: 'Internal server error' });
+  }
+});
 
 // Cron job — tous les jours à minuit
 cron.schedule('0 0 * * *', () => {

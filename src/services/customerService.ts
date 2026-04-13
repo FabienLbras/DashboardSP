@@ -17,6 +17,7 @@ export interface Customer {
   phone?: string;
   address?: string;
   status: 'active' | 'inactive';
+  zoho_id?: string | null;
   created_at: string;
   updated_at: string;
   property_count?: number;

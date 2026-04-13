@@ -14,4 +14,13 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    proxy: {
+      // In dev, forward /api/* to the Express backend
+      "/api": {
+        target: "http://localhost:4000",
+        changeOrigin: true,
+      },
+    },
+  },
 });

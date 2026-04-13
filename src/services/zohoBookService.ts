@@ -1,8 +1,8 @@
 import type { BillingInvoice } from "../types/billing";
 
-const ZOHO_API_BASE = "https://www.zohoapis.eu/books/v3";
-const ACCESS_TOKEN = import.meta.env.VITE_ZOHO_ACCESS_TOKEN as string;
-const ORGANIZATION_ID = import.meta.env.VITE_ZOHO_ORGANIZATION_ID as string;
+// In dev, Vite proxies /api → http://localhost:4000
+// In prod, set VITE_API_URL to your deployed backend URL
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
 export interface ZohoLineItem {
   name: string;
@@ -55,30 +55,17 @@ export async function createZohoInvoice(
   invoice: BillingInvoice,
   customerZohoId: string
 ): Promise<ZohoInvoiceResponse> {
-  if (!ACCESS_TOKEN) {
-    throw new Error("VITE_ZOHO_ACCESS_TOKEN is not configured");
-  }
-  if (!ORGANIZATION_ID) {
-    throw new Error("VITE_ZOHO_ORGANIZATION_ID is not configured");
-  }
-
   const payload = mapToZohoPayload(invoice, customerZohoId);
 
-  const response = await fetch(
-    `${ZOHO_API_BASE}/invoices?organization_id=${ORGANIZATION_ID}`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Zoho-oauthtoken ${ACCESS_TOKEN}`,
-        "Content-Type": "application/json;charset=UTF-8",
-      },
-      body: JSON.stringify(payload),
-    }
-  );
+  const response = await fetch(`${API_BASE}/api/zoho/invoices`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => response.statusText);
-    throw new Error(`Zoho API error ${response.status}: ${errorText}`);
+    throw new Error(`Zoho proxy error ${response.status}: ${errorText}`);
   }
 
   const data: ZohoInvoiceResponse = await response.json();

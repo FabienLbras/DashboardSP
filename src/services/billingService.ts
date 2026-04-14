@@ -10,6 +10,11 @@ export class BillingService {
     email: string;
     address?: string;
     status: string;
+    fixed_fee?: number | null;
+    included_tx_count?: number | null;
+    extra_tx_unit_price?: number | null;
+    price_per_terminal?: number | null;
+    tax_rate?: number | null;
   }, options?: {
     start_date?: string; // ex: "2026-03-01"
     end_date?: string;   // ex: "2026-03-31"
@@ -92,11 +97,11 @@ export class BillingService {
     };
 
     invoice.pricing = {
-      fixed_fee: 100,
-      included_tx_count: 1000,
-      extra_tx_unit_price: 0.02,
-      price_per_terminal: 10,
-      tax_rate: 0.21,
+      fixed_fee: Number(customerData.fixed_fee ?? 100),
+      included_tx_count: Number(customerData.included_tx_count ?? 1000),
+      extra_tx_unit_price: Number(customerData.extra_tx_unit_price ?? 0.02),
+      price_per_terminal: Number(customerData.price_per_terminal ?? 10),
+      tax_rate: Number(customerData.tax_rate ?? 0.21),
       discount: 0,
     };
 

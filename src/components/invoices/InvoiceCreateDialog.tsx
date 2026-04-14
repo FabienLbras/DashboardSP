@@ -102,6 +102,11 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
           email: customer.email,
           address: customer.address,
           status: customer.status,
+          fixed_fee: customer.fixed_fee,
+          included_tx_count: customer.included_tx_count,
+          extra_tx_unit_price: customer.extra_tx_unit_price,
+          price_per_terminal: customer.price_per_terminal,
+          tax_rate: customer.tax_rate,
         },
         { start_date: startDate, end_date: endDate }
       );
@@ -133,7 +138,17 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
 
   const handleZohoSync = async () => {
     if (!generatedInvoice || !selectedCustomer) return;
-    const customerZohoId = selectedCustomer.zoho_id ?? String(selectedCustomer.id);
+    const customerZohoId =
+      selectedCustomer.zoho_contact_id ??
+      selectedCustomer.zoho_id;
+    if (!customerZohoId) {
+      toast({
+        title: "Zoho Contact ID manquant",
+        description: "Ce client Dashboard n'a pas de contact Zoho Books lié.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsSyncingZoho(true);
     try {
       const result = await createZohoInvoice(generatedInvoice, customerZohoId);
@@ -541,7 +556,7 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
                   ) : (
                     <>
                       <BookOpen className="w-4 h-4 mr-2" />
-                      Sync Zoho Books
+                      Créer dans Zoho Books
                     </>
                   )}
                 </Button>

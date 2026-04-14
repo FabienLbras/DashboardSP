@@ -296,6 +296,11 @@ async function ensureSchema() {
       phone VARCHAR(100),
       address TEXT,
       status VARCHAR(50) DEFAULT 'active',
+      fixed_fee NUMERIC(12,2) DEFAULT 100,
+      included_tx_count INTEGER DEFAULT 1000,
+      extra_tx_unit_price NUMERIC(12,4) DEFAULT 0.02,
+      price_per_terminal NUMERIC(12,2) DEFAULT 10,
+      tax_rate NUMERIC(12,4) DEFAULT 0.21,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )
@@ -419,6 +424,15 @@ async function ensureSchema() {
   await pool.query(`
       ALTER TABLE customers
       ADD COLUMN IF NOT EXISTS next_billing_date DATE
+  `);
+
+  await pool.query(`
+    ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS fixed_fee NUMERIC(12,2) DEFAULT 100,
+      ADD COLUMN IF NOT EXISTS included_tx_count INTEGER DEFAULT 1000,
+      ADD COLUMN IF NOT EXISTS extra_tx_unit_price NUMERIC(12,4) DEFAULT 0.02,
+      ADD COLUMN IF NOT EXISTS price_per_terminal NUMERIC(12,2) DEFAULT 10,
+      ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(12,4) DEFAULT 0.21
   `);
 
   // ── Terminal transactions (PAX webhook)
@@ -1045,27 +1059,90 @@ app.get('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, 
 });
 
 app.post('/api/admin/customers', requireAuth, requireSuperAdmin, async (req, res) => {
-  const { name, email, phone, address, zoho_id } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    address,
+    zoho_id,
+    fixed_fee,
+    included_tx_count,
+    extra_tx_unit_price,
+    price_per_terminal,
+    tax_rate,
+  } = req.body;
   if (!name || !email) return res.status(400).json({ message: 'Name and email required' });
   try {
+    const resolvedZohoId = zoho_id || await createZohoContact({
+      name,
+      email,
+      phone,
+      address,
+    });
+
     const { rows } = await pool.query(
-      'INSERT INTO customers (name, email, phone, address, zoho_id) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [name, email, phone || null, address || null, zoho_id || null]
+      `INSERT INTO customers
+        (name, email, phone, address, zoho_id, fixed_fee, included_tx_count, extra_tx_unit_price, price_per_terminal, tax_rate)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING *`,
+      [
+        name,
+        email,
+        phone || null,
+        address || null,
+        resolvedZohoId,
+        fixed_fee ?? 100,
+        included_tx_count ?? 1000,
+        extra_tx_unit_price ?? 0.02,
+        price_per_terminal ?? 10,
+        tax_rate ?? 0.21,
+      ]
     );
     await cacheDel('customers:list');
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'Email already exists' });
+    if (err.zohoStatus) return res.status(err.zohoStatus).json({ message: err.message, zoho: err.zoho });
     console.error(err); res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
 app.put('/api/admin/customers/:id', requireAuth, requireSuperAdmin, async (req, res) => {
-  const { name, email, phone, address, status, zoho_id } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    address,
+    status,
+    zoho_id,
+    fixed_fee,
+    included_tx_count,
+    extra_tx_unit_price,
+    price_per_terminal,
+    tax_rate,
+  } = req.body;
   try {
     const { rows } = await pool.query(
-      'UPDATE customers SET name=$1, email=$2, phone=$3, address=$4, status=$5, zoho_id=$6, updated_at=NOW() WHERE id=$7 RETURNING *',
-      [name, email, phone || null, address || null, status || 'active', zoho_id ?? null, req.params.id]
+      `UPDATE customers
+       SET name=$1, email=$2, phone=$3, address=$4, status=$5, zoho_id=$6,
+           fixed_fee=$7, included_tx_count=$8, extra_tx_unit_price=$9, price_per_terminal=$10, tax_rate=$11,
+           updated_at=NOW()
+       WHERE id=$12
+       RETURNING *`,
+      [
+        name,
+        email,
+        phone || null,
+        address || null,
+        status || 'active',
+        zoho_id ?? null,
+        fixed_fee ?? 100,
+        included_tx_count ?? 1000,
+        extra_tx_unit_price ?? 0.02,
+        price_per_terminal ?? 10,
+        tax_rate ?? 0.21,
+        req.params.id,
+      ]
     );
     if (!rows[0]) return res.status(404).json({ message: 'Customer not found' });
     await cacheDel('customers:list');
@@ -1419,11 +1496,11 @@ async function generateInvoicesForAllCustomers() {
         );
         const txCount = parseInt(txRows[0].count);
 
-        const fixedFee = 100;
-        const includedTx = 1000;
-        const extraTxPrice = 0.02;
-        const pricePerTerminal = 10;
-        const taxRate = 0.21;
+        const fixedFee = Number(customer.fixed_fee ?? 100);
+        const includedTx = Number(customer.included_tx_count ?? 1000);
+        const extraTxPrice = Number(customer.extra_tx_unit_price ?? 0.02);
+        const pricePerTerminal = Number(customer.price_per_terminal ?? 10);
+        const taxRate = Number(customer.tax_rate ?? 0.21);
 
         const extraTx = Math.max(0, txCount - includedTx);
         const subtotal = fixedFee + (extraTx * extraTxPrice) + (terminalCount * pricePerTerminal);
@@ -1547,6 +1624,56 @@ async function getZohoAccessToken() {
   _zohoToken       = data.access_token;
   _zohoTokenExpiry = now + ((data.expires_in ?? 3600) - 300) * 1000;
   return _zohoToken;
+}
+
+async function createZohoContact({ name, email, phone, address }) {
+  const { ZOHO_ORGANIZATION_ID } = process.env;
+  if (!ZOHO_ORGANIZATION_ID) {
+    throw new Error('ZOHO_ORGANIZATION_ID is not configured');
+  }
+
+  const accessToken = await getZohoAccessToken();
+  const payload = {
+    contact_name: name,
+    company_name: name,
+    contact_type: 'customer',
+    customer_sub_type: 'business',
+    payment_terms: 30,
+    billing_address: {
+      address: address || '',
+    },
+    contact_persons: [
+      {
+        first_name: name,
+        email,
+        phone: phone || '',
+        is_primary_contact: true,
+      },
+    ],
+  };
+
+  const zohoRes = await fetch(
+    `${ZOHO_API_BASE}/contacts?organization_id=${ZOHO_ORGANIZATION_ID}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Zoho-oauthtoken ${accessToken}`,
+        'Content-Type': 'application/json;charset=UTF-8',
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const data = await zohoRes.json();
+
+  if (!zohoRes.ok || data.code !== 0 || !data.contact?.contact_id) {
+    const err = new Error(data?.message || 'Zoho contact creation failed');
+    err.zohoStatus = zohoRes.ok ? 422 : zohoRes.status;
+    err.zoho = data;
+    throw err;
+  }
+
+  return data.contact.contact_id;
 }
 
 // POST /api/zoho/token

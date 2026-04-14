@@ -263,6 +263,31 @@ export default function CustomerDetailPage() {
         </Button>
       </div>
 
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="grid gap-3 md:grid-cols-2 text-sm">
+            <div className="text-muted-foreground">
+              Zoho Contact ID: <span className="font-mono text-foreground">{data.zoho_contact_id || data.zoho_id || "Not set"}</span>
+            </div>
+            <div className="text-muted-foreground">
+              Monthly Fee: <span className="font-medium text-foreground">€{Number(data.fixed_fee ?? 100).toFixed(2)}</span>
+            </div>
+            <div className="text-muted-foreground">
+              Included Transactions: <span className="font-medium text-foreground">{Number(data.included_tx_count ?? 1000)}</span>
+            </div>
+            <div className="text-muted-foreground">
+              Extra Transaction Price: <span className="font-medium text-foreground">€{Number(data.extra_tx_unit_price ?? 0.02).toFixed(4)}</span>
+            </div>
+            <div className="text-muted-foreground">
+              Price Per Terminal: <span className="font-medium text-foreground">€{Number(data.price_per_terminal ?? 10).toFixed(2)}</span>
+            </div>
+            <div className="text-muted-foreground">
+              Tax Rate: <span className="font-medium text-foreground">{(Number(data.tax_rate ?? 0.21) * 100).toFixed(2)}%</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[

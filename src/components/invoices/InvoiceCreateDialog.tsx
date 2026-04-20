@@ -10,7 +10,7 @@ import { Loader2, Check, FileText, Globe, RefreshCw, BookOpen } from "lucide-rea
 import { useToast } from "../../hooks/useToast";
 import { CustomerService, Customer } from "../../services/customerService";
 import { BillingService } from "../../services/billingService";
-import { createZohoInvoice } from "../../services/zohoBookService";
+import { createZohoInvoice, ensureZohoContact } from "../../services/zohoBookService";
 import type { BillingInvoice } from "../../types/billing";
 import { type Language, getInvoiceTranslation } from "../../lib/invoiceTranslations";
 
@@ -138,20 +138,26 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
 
   const handleZohoSync = async () => {
     if (!generatedInvoice || !selectedCustomer) return;
-    const customerZohoId =
-      selectedCustomer.zoho_contact_id ??
-      selectedCustomer.zoho_id;
-    if (!customerZohoId) {
-      toast({
-        title: "Zoho Contact ID manquant",
-        description: "Ce client Dashboard n'a pas de contact Zoho Books lié.",
-        variant: "destructive",
-      });
-      return;
-    }
     setIsSyncingZoho(true);
     try {
-      const result = await createZohoInvoice(generatedInvoice, customerZohoId);
+      let zohoId: string =
+        (selectedCustomer as any).zoho_contact_id ??
+        (selectedCustomer as any).zoho_id ??
+        "";
+
+      if (!zohoId) {
+        toast({ title: "Création du contact Zoho…", description: selectedCustomer.name });
+        zohoId = await ensureZohoContact(
+          selectedCustomer.id,
+          selectedCustomer.name,
+          selectedCustomer.email,
+          (selectedCustomer as any).phone,
+          selectedCustomer.address,
+        );
+        (selectedCustomer as any).zoho_id = zohoId;
+      }
+
+      const result = await createZohoInvoice(generatedInvoice, zohoId);
       const invoiceRef = result.invoice?.invoice_number ?? "";
       toast({
         title: "Synchronisé avec Zoho Books",
@@ -217,7 +223,7 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
                   <SelectTrigger>
                     <SelectValue placeholder={t("selectCustomer")} />
                   </SelectTrigger>
-                  <SelectContent onPointerDownOutside={(e) => e.preventDefault()}>
+                  <SelectContent>
                     {(customers ?? []).map((c) => (
                       <SelectItem key={c.id} value={String(c.id)}>
                         {c.name}
@@ -260,7 +266,7 @@ export function InvoiceCreateDialog({ open, onOpenChange }: InvoiceCreateDialogP
                     })()}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent onPointerDownOutside={(e) => e.preventDefault()}>
+                <SelectContent>
                   {availableLanguages.map((lang) => (
                     <SelectItem key={lang.code} value={lang.code}>
                       {lang.flag} {lang.name}

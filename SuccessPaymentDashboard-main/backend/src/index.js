@@ -1676,6 +1676,27 @@ async function createZohoContact({ name, email, phone, address }) {
   return data.contact.contact_id;
 }
 
+// POST /api/zoho/contacts — crée un contact Zoho et met à jour le client en DB
+app.post('/api/zoho/contacts', requireAuth, requireSuperAdmin, async (req, res) => {
+  const { customerId, name, email, phone, address } = req.body;
+  if (!customerId || !name || !email) {
+    return res.status(400).json({ message: 'customerId, name and email are required' });
+  }
+  try {
+    const zohoContactId = await createZohoContact({ name, email, phone, address });
+    await pool.query(
+      `UPDATE customers SET zoho_id = $1, updated_at = NOW() WHERE id = $2`,
+      [zohoContactId, customerId]
+    );
+    await cacheDel('customers:list');
+    res.json({ zoho_contact_id: zohoContactId });
+  } catch (err) {
+    console.error('[/api/zoho/contacts]', err.message);
+    if (err.zohoStatus) return res.status(err.zohoStatus).json({ message: err.message, zoho: err.zoho });
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // POST /api/zoho/token
 app.post('/api/zoho/token', async (_req, res) => {
   try {

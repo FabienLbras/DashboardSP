@@ -308,7 +308,8 @@ authAPI.interceptors.response.use(
       requestUrl.includes('/auth/login') ||
       requestUrl.includes('/auth/mfa/login-verify') ||
       requestUrl.includes('/auth/forgot-password') ||
-      requestUrl.includes('/auth/reset-password');
+      requestUrl.includes('/auth/reset-password') ||
+      requestUrl.includes('/auth/refresh');
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthBootstrapRequest) {
       originalRequest._retry = true;
@@ -325,9 +326,8 @@ authAPI.interceptors.response.use(
           return authAPI(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh failed, logout and redirect
         AuthService.logout();
-        window.location.href = '/signin';
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
         return Promise.reject(refreshError);
       }
     }

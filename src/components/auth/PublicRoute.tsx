@@ -13,6 +13,8 @@ interface PublicRouteProps {
 export default function PublicRoute({ children }: PublicRouteProps) {
   const { user, loading } = useAuth();
 
+  console.log('[PublicRoute] render — loading:', loading, 'user:', user?.email ?? null);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -21,6 +23,9 @@ export default function PublicRoute({ children }: PublicRouteProps) {
     );
   }
 
-  // If user is authenticated, redirect to dashboard
-  return user ? <Navigate to="/" replace /> : <>{children}</>;
+  if (user) {
+    console.log('[PublicRoute] user authentifié → redirect /');
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
 }

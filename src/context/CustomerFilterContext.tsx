@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Customer, CustomerService } from "../services/customerService";
+import { useAuth } from "./AuthContext";
 
 interface CustomerFilterContextType {
   selectedCustomer: Customer | null;
@@ -23,8 +24,14 @@ export const CustomerFilterProvider = ({ children }: { children: ReactNode }) =>
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [selectedCustomer, setSelectedCustomerState] = useState<Customer | null>(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setCustomers([]);
+      setSelectedCustomerState(null);
+      return;
+    }
     setLoadingCustomers(true);
     CustomerService.list()
       .then(({ items }) => {
@@ -37,7 +44,7 @@ export const CustomerFilterProvider = ({ children }: { children: ReactNode }) =>
       })
       .catch(() => {})
       .finally(() => setLoadingCustomers(false));
-  }, []);
+  }, [isAuthenticated]);
 
   const setSelectedCustomer = (c: Customer | null) => {
     setSelectedCustomerState(c);

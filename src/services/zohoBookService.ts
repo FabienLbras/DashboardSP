@@ -1,4 +1,5 @@
 import type { BillingInvoice } from "../types/billing";
+import AuthService from "./authService";
 
 // In dev, Vite proxies /api → http://localhost:4000
 // In prod, set VITE_API_URL to your deployed backend URL
@@ -49,6 +50,31 @@ function mapToZohoPayload(
     due_date: invoice.billing_period.due_date,
     line_items: lineItems,
   };
+}
+
+export async function ensureZohoContact(
+  customerId: number,
+  name: string,
+  email: string,
+  phone?: string | null,
+  address?: string | null
+): Promise<string> {
+  const response = await fetch(`${API_BASE}/api/zoho/contacts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${AuthService.getAccessToken() ?? ""}`,
+    },
+    body: JSON.stringify({ customerId, name, email, phone, address }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    throw new Error(`Zoho contact creation failed ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.zoho_contact_id as string;
 }
 
 export async function createZohoInvoice(

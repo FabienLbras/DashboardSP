@@ -15,6 +15,29 @@ export class TransactionService {
       return Number.isNaN(date.getTime()) ? "" : date.toISOString();
     }
 
+    if (typeof value === "object") {
+      const maybeTimestamp = value as Record<string, unknown>;
+      const seconds = maybeTimestamp.seconds ?? maybeTimestamp._seconds;
+      const milliseconds = maybeTimestamp.milliseconds ?? maybeTimestamp.epochMilliseconds;
+      const nestedDate =
+        maybeTimestamp.date ??
+        maybeTimestamp.created_at ??
+        maybeTimestamp.createdAt ??
+        maybeTimestamp.timestamp;
+
+      if (typeof milliseconds === "number") {
+        return this.normalizeDateValue(milliseconds);
+      }
+
+      if (typeof seconds === "number") {
+        return this.normalizeDateValue(seconds);
+      }
+
+      if (nestedDate) {
+        return this.normalizeDateValue(nestedDate);
+      }
+    }
+
     if (typeof value === "string") {
       const trimmed = value.trim();
       if (!trimmed) return "";
@@ -60,6 +83,7 @@ export class TransactionService {
       refundAmount: row.refundAmount ?? row.refund_amount,
       receiptUrl: row.receiptUrl || row.receipt_url,
       metadata: row.metadata || {},
+      rawPayload: row,
     };
   }
   

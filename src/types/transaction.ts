@@ -15,6 +15,7 @@ export interface Transaction {
   refundAmount?: number;
   receiptUrl?: string;
   metadata?: Record<string, any>;
+  rawPayload?: Record<string, any>;
 }
 
 export interface TransactionFilters {

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,12 +6,19 @@ import {
   DropdownMenuTrigger
 } from "../../components/ui/dropdown-menu";
 import { Button } from '../ui/button'
-import { Download, Eye, MoreHorizontal, RefreshCw } from 'lucide-react';
+import { Bug, Download, Eye, MoreHorizontal, RefreshCw } from 'lucide-react';
 import TransactionService from '../../services/transactionService';
 import { useToast } from "../../hooks/useToast";
 import { Transaction } from "../../types/transaction";
 import { useAuth } from "../../context/AuthContext";
 import { APP_PERMISSIONS, hasPermission } from "../../lib/permissions";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 interface TransactionActionsProps {
   transaction: Transaction;
@@ -32,7 +39,13 @@ const TransactionActions = ({
 }: TransactionActionsProps) => {
     const { toast } = useToast();
     const { user } = useAuth();
+    const [isPayloadOpen, setIsPayloadOpen] = useState(false);
     const canUseVirtualTerminal = hasPermission(user?.role, APP_PERMISSIONS.USE_VIRTUAL_TERMINAL);
+    const payloadPreview = useMemo(
+      () => JSON.stringify(transaction.rawPayload ?? transaction, null, 2),
+      [transaction]
+    );
+
     // Handle view transaction details
       const handleViewDetails = async (transactionId: string) => {
         try {
@@ -80,29 +93,49 @@ const TransactionActions = ({
     };
 
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleViewDetails(transaction?.id)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Details
-                </DropdownMenuItem>
-                <DropdownMenuItem className='hidden' onClick={() => handleDownloadReceipt(transaction?.id)}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Receipt
-                </DropdownMenuItem>
-                {canUseVirtualTerminal && transaction.state === "completed" && (
-                    <DropdownMenuItem onClick={() => handleProcessRefund(transaction?.id)}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Process Refund
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleViewDetails(transaction?.id)}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
                     </DropdownMenuItem>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
+                    <DropdownMenuItem onClick={() => setIsPayloadOpen(true)}>
+                        <Bug className="h-4 w-4 mr-2" />
+                        View Payload
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className='hidden' onClick={() => handleDownloadReceipt(transaction?.id)}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Receipt
+                    </DropdownMenuItem>
+                    {canUseVirtualTerminal && transaction.state === "completed" && (
+                        <DropdownMenuItem onClick={() => handleProcessRefund(transaction?.id)}>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Process Refund
+                        </DropdownMenuItem>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Dialog open={isPayloadOpen} onOpenChange={setIsPayloadOpen}>
+                <DialogContent className="max-w-4xl bg-white">
+                    <DialogHeader>
+                        <DialogTitle>Incoming Payload</DialogTitle>
+                        <DialogDescription>
+                            Raw payload received for transaction {transaction.id}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <pre className="max-h-[70vh] overflow-auto rounded-md border bg-slate-50 p-4 text-xs leading-5 text-slate-900">
+{payloadPreview}
+                    </pre>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }
 

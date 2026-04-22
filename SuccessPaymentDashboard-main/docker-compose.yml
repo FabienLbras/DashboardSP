@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -24,6 +22,8 @@ services:
     build: ./backend
     container_name: dashboard-backend
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       DB_HOST: postgres
       DB_PORT: 5432

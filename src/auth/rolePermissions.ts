@@ -1,7 +1,12 @@
 import { ROLES } from "./roles"
 import { PERMISSIONS } from "./permissions"
 
+   
+
 export const ROLE_PERMISSIONS = {
+  super_admin: Object.values(PERMISSIONS),
+  sp_admin: Object.values(PERMISSIONS),
+
   [ROLES.HOTEL_MANAGER]: [
     PERMISSIONS.VIEW_TRANSACTIONS,
     PERMISSIONS.EXPORT_REPORTS,

@@ -12,7 +12,19 @@ import { CustomerService } from "../services/customerService";
 import { useToast } from "../hooks/useToast";
 import { useLanguage } from "../context/LanguageContext";
 
-type Form = { name: string; email: string; phone: string; address: string; status: "active" | "inactive" };
+type Form = {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  status: "active" | "inactive";
+  zohoContactId: string;
+  fixedFee: string;
+  includedTxCount: string;
+  extraTxUnitPrice: string;
+  pricePerTerminal: string;
+  taxRate: string;
+};
 
 export default function CustomerEdit() {
   const { id } = useParams<{ id: string }>();
@@ -21,7 +33,19 @@ export default function CustomerEdit() {
   const { t } = useLanguage();
   const customerId = Number(id);
 
-  const [form, setForm] = useState<Form>({ name: "", email: "", phone: "", address: "", status: "active" });
+  const [form, setForm] = useState<Form>({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    status: "active",
+    zohoContactId: "",
+    fixedFee: "100",
+    includedTxCount: "1000",
+    extraTxUnitPrice: "0.02",
+    pricePerTerminal: "10",
+    taxRate: "0.21",
+  });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -30,7 +54,19 @@ export default function CustomerEdit() {
   useEffect(() => {
     CustomerService.get(customerId)
       .then((c) => {
-        setForm({ name: c.name, email: c.email, phone: c.phone || "", address: c.address || "", status: c.status });
+        setForm({
+          name: c.name,
+          email: c.email,
+          phone: c.phone || "",
+          address: c.address || "",
+          status: c.status,
+          zohoContactId: c.zoho_contact_id || c.zoho_id || "",
+          fixedFee: String(c.fixed_fee ?? 100),
+          includedTxCount: String(c.included_tx_count ?? 1000),
+          extraTxUnitPrice: String(c.extra_tx_unit_price ?? 0.02),
+          pricePerTerminal: String(c.price_per_terminal ?? 10),
+          taxRate: String(c.tax_rate ?? 0.21),
+        });
       })
       .catch((e) => setLoadError(e?.response?.data?.message || "Failed to load customer"))
       .finally(() => setLoading(false));
@@ -43,7 +79,19 @@ export default function CustomerEdit() {
     if (!form.email.trim()) { setFormError("Email is required."); return; }
     setSaving(true);
     try {
-      await CustomerService.update(customerId, form);
+      await CustomerService.update(customerId, {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        status: form.status,
+        zoho_id: form.zohoContactId.trim() || null,
+        fixed_fee: Number(form.fixedFee || 100),
+        included_tx_count: Number(form.includedTxCount || 1000),
+        extra_tx_unit_price: Number(form.extraTxUnitPrice || 0.02),
+        price_per_terminal: Number(form.pricePerTerminal || 10),
+        tax_rate: Number(form.taxRate || 0.21),
+      });
       toast({ title: "Customer updated successfully" });
       navigate(`/customers/${customerId}`);
     } catch (e: any) {
@@ -164,6 +212,40 @@ export default function CustomerEdit() {
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
                 placeholder="123 Main St, Paris"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="zohoContactId">Zoho Contact ID</Label>
+              <Input
+                id="zohoContactId"
+                value={form.zohoContactId}
+                onChange={(e) => setForm({ ...form, zohoContactId: e.target.value })}
+                placeholder="Zoho Books contact_id"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="fixedFee">Monthly Fee</Label>
+                <Input id="fixedFee" type="number" step="0.01" value={form.fixedFee} onChange={(e) => setForm({ ...form, fixedFee: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="includedTxCount">Included Transactions</Label>
+                <Input id="includedTxCount" type="number" step="1" value={form.includedTxCount} onChange={(e) => setForm({ ...form, includedTxCount: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="extraTxUnitPrice">Extra Transaction Price</Label>
+                <Input id="extraTxUnitPrice" type="number" step="0.0001" value={form.extraTxUnitPrice} onChange={(e) => setForm({ ...form, extraTxUnitPrice: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pricePerTerminal">Price Per Terminal</Label>
+                <Input id="pricePerTerminal" type="number" step="0.01" value={form.pricePerTerminal} onChange={(e) => setForm({ ...form, pricePerTerminal: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="taxRate">Tax Rate</Label>
+              <Input id="taxRate" type="number" step="0.0001" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} />
             </div>
 
             <div className="flex justify-end gap-3 pt-2">

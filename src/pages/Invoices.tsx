@@ -44,12 +44,16 @@ import { InvoiceDetailsDialog } from "../components/invoices/InvoiceDetailsDialo
 import { ReminderDialog } from "../components/invoices/ReminderDialog";
 import { useToast } from "../hooks/useToast";
 import { useLanguage } from "../context/LanguageContext";
+import { useAuth } from "../context/AuthContext";
+import { isPlatformAdmin } from "../lib/permissions";
 
 const invoices: any[] = [];
 
 export default function Invoices() {
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const canCreateInvoice = isPlatformAdmin(user?.role);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -107,12 +111,14 @@ export default function Invoices() {
           <h1 className="text-3xl font-bold text-text-primary">{t("invoiceManagement")}</h1>
           <p className="text-muted-foreground">{t("createManageInvoices")}</p>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
-            <Plus className="h-4 w-4 mr-2" />
-            {t("createInvoice")}
-          </Button>
-        </div>
+        {canCreateInvoice && (
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => setCreateDialogOpen(true)} className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 hover:scale-105 transition-transform">
+              <Plus className="h-4 w-4 mr-2" />
+              {t("createInvoice")}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -293,12 +299,12 @@ export default function Invoices() {
       </Card>
 
       {/* Dialogs */}
-      <InvoiceCreateDialog 
-        open={createDialogOpen} 
+      {canCreateInvoice && <InvoiceCreateDialog
+        open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-      />
-      
-      <InvoiceDetailsDialog 
+      />}
+
+      <InvoiceDetailsDialog
         open={detailsDialogOpen} 
         onOpenChange={setDetailsDialogOpen}
         invoice={selectedInvoice}

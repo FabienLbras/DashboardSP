@@ -30,6 +30,7 @@ export type AppPermission = (typeof APP_PERMISSIONS)[keyof typeof APP_PERMISSION
 
 const rolePermissions: Record<string, AppPermission[]> = {
   [APP_ROLES.SUPER_ADMIN]: Object.values(APP_PERMISSIONS),
+  [APP_ROLES.SP_ADMIN]: Object.values(APP_PERMISSIONS),
   // hotel_manager = customer super-admin: full access + manage users for their customer
   [APP_ROLES.HOTEL_MANAGER]: Object.values(APP_PERMISSIONS),
   // financial_manager: reports/transactions/EOD scoped to their property

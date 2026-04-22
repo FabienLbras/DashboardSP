@@ -9,6 +9,8 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
+  console.log('[ProtectedRoute] render — loading:', loading, 'user:', user?.email ?? null);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -17,7 +19,13 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) return <Navigate to="/signin" replace />;
-  if (user.must_change_password) return <Navigate to="/change-password" replace />;
+  if (!user) {
+    console.log('[ProtectedRoute] pas de user → redirect /signin');
+    return <Navigate to="/signin" replace />;
+  }
+  if (user.must_change_password) {
+    console.log('[ProtectedRoute] must_change_password → redirect /change-password');
+    return <Navigate to="/change-password" replace />;
+  }
   return <>{children}</>;
 }

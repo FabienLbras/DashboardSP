@@ -4,11 +4,34 @@ import { AuthService } from './authService';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 const api = axios.create({ baseURL: API_BASE_URL });
+
 api.interceptors.request.use((config) => {
   const token = AuthService.getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        await AuthService.refreshToken();
+        const newToken = AuthService.getAccessToken();
+        if (newToken) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        }
+      } catch {
+        AuthService.logout();
+        window.location.href = '/signin';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface SpAdmin {
   id: number;

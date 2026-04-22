@@ -12,14 +12,38 @@ import { CustomerService } from "../services/customerService";
 import { useToast } from "../hooks/useToast";
 import { useLanguage } from "../context/LanguageContext";
 
-type Form = { name: string; email: string; phone: string; address: string; status: "active" | "inactive" };
+type Form = {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  status: "active" | "inactive";
+  zohoContactId: string;
+  fixedFee: string;
+  includedTxCount: string;
+  extraTxUnitPrice: string;
+  pricePerTerminal: string;
+  taxRate: string;
+};
 
 export default function CustomerNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useLanguage();
 
-  const [form, setForm] = useState<Form>({ name: "", email: "", phone: "", address: "", status: "active" });
+  const [form, setForm] = useState<Form>({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    status: "active",
+    zohoContactId: "",
+    fixedFee: "100",
+    includedTxCount: "1000",
+    extraTxUnitPrice: "0.02",
+    pricePerTerminal: "10",
+    taxRate: "0.21",
+  });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -30,7 +54,18 @@ export default function CustomerNew() {
     if (!form.email.trim()) { setFormError("Email is required."); return; }
     setSaving(true);
     try {
-      const created = await CustomerService.create(form);
+      const created = await CustomerService.create({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        zoho_id: form.zohoContactId.trim() || null,
+        fixed_fee: Number(form.fixedFee || 100),
+        included_tx_count: Number(form.includedTxCount || 1000),
+        extra_tx_unit_price: Number(form.extraTxUnitPrice || 0.02),
+        price_per_terminal: Number(form.pricePerTerminal || 10),
+        tax_rate: Number(form.taxRate || 0.21),
+      });
       toast({ title: "Customer created successfully" });
       navigate(`/customers/${created.id}`);
     } catch (e: any) {
@@ -131,6 +166,40 @@ export default function CustomerNew() {
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
                 placeholder="123 Main St, Paris"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="zohoContactId">Zoho Contact ID</Label>
+              <Input
+                id="zohoContactId"
+                value={form.zohoContactId}
+                onChange={(e) => setForm({ ...form, zohoContactId: e.target.value })}
+                placeholder="Auto-generated if left empty"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="fixedFee">Monthly Fee</Label>
+                <Input id="fixedFee" type="number" step="0.01" value={form.fixedFee} onChange={(e) => setForm({ ...form, fixedFee: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="includedTxCount">Included Transactions</Label>
+                <Input id="includedTxCount" type="number" step="1" value={form.includedTxCount} onChange={(e) => setForm({ ...form, includedTxCount: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="extraTxUnitPrice">Extra Transaction Price</Label>
+                <Input id="extraTxUnitPrice" type="number" step="0.0001" value={form.extraTxUnitPrice} onChange={(e) => setForm({ ...form, extraTxUnitPrice: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pricePerTerminal">Price Per Terminal</Label>
+                <Input id="pricePerTerminal" type="number" step="0.01" value={form.pricePerTerminal} onChange={(e) => setForm({ ...form, pricePerTerminal: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="taxRate">Tax Rate</Label>
+              <Input id="taxRate" type="number" step="0.0001" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} />
             </div>
 
             <div className="flex justify-end gap-3 pt-2">

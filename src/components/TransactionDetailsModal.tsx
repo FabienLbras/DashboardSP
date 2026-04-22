@@ -177,7 +177,7 @@ export default function TransactionDetailsModal({
                     Date & Time
                   </p>
                   <p className="text-sm">
-                    {new Date(transaction.createdOn).toLocaleString()}
+                    {TransactionService.formatDate(transaction.createdOn)}
                   </p>
                 </div>
                 <div className="space-y-2">

@@ -49,6 +49,28 @@ CREATE TABLE IF NOT EXISTS terminals (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Terminal transactions (PAX webhook)
+CREATE TABLE IF NOT EXISTS terminal_transactions (
+  id                 SERIAL PRIMARY KEY,
+  uti                VARCHAR(100) UNIQUE NOT NULL,
+  status             VARCHAR(20),
+  transaction_type   VARCHAR(20),
+  amount_cents       INTEGER,
+  auth_code          VARCHAR(50),
+  reason             VARCHAR(50),
+  transaction_source VARCHAR(20),
+  trans_cancelled    BOOLEAN,
+  tid                VARCHAR(50),
+  mid                VARCHAR(50),
+  pan                VARCHAR(20),
+  card_type          VARCHAR(100),
+  aid                VARCHAR(50),
+  transaction_date   TIMESTAMP,
+  terminal_sn        VARCHAR(50),
+  timestamp          TIMESTAMP,
+  created_at         TIMESTAMP DEFAULT NOW()
+);
+
 -- Seed: default admin user (password: Admin123)
 -- Hash generated via: node -e "require('bcryptjs').hash('Admin123',10).then(console.log)"
 INSERT INTO users (email, name, password_hash, role)

@@ -1,3 +1,10 @@
+
+
+
+
+import { PERMISSIONS } from "../auth/permissions";
+
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -32,9 +39,13 @@ import { APP_PERMISSIONS, hasPermission } from "../lib/permissions";
 import { usePropertyFilter } from "../context/PropertyFilterContext";
 import PropertyFilterSelect from "../components/common/PropertyFilterSelect";
 
+import ProtectedRoute from "../auth/ProtectedRoute";
 
 
 export default function Transactions() {
+
+  
+
   const { user } = useAuth();
   const { selectedProperty } = usePropertyFilter();
   const [error, setError] = useState("");
@@ -205,7 +216,7 @@ export default function Transactions() {
       
       const csvRows = filteredTransactions.map(transaction => [
         transaction.id,
-        new Date(transaction.createdOn).toLocaleString(),
+        TransactionService.formatDate(transaction.createdOn),
         transaction.customerName,
         Number(transaction.amount).toFixed(2),
         transaction.currency || 'USD',
@@ -326,8 +337,7 @@ export default function Transactions() {
       
       const tableRows = filteredTransactions.map(transaction => [
         transaction.id,
-        new Date(transaction.createdOn).toLocaleDateString() + ' ' + 
-        new Date(transaction.createdOn).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        TransactionService.formatDate(transaction.createdOn),
         transaction.customerName,
         `$${Number(transaction.amount).toFixed(2)}`,
         transaction.currency || 'USD',
@@ -406,6 +416,7 @@ export default function Transactions() {
   const displayTransactions = getDisplayTransactions();
 
   return (
+    <ProtectedRoute permission={PERMISSIONS.VIEW_TRANSACTIONS}>
     <div className="space-y-6">
       {/* Header */}
       <Header
@@ -511,7 +522,7 @@ export default function Transactions() {
                     <TableRow key={transaction?.id}>
                       <TableCell className="font-medium">{transaction?.id}</TableCell>
                       <TableCell>
-                        {new Date(transaction?.createdOn).toLocaleString()}
+                        {TransactionService.formatDate(transaction?.createdOn)}
                       </TableCell>
                       <TableCell>{transaction?.customerName}</TableCell>
                       <TableCell className="font-medium">
@@ -552,5 +563,6 @@ export default function Transactions() {
         }}
       />
     </div>
+    </ProtectedRoute>
   );
 }

@@ -41,6 +41,7 @@ const COLORS = ['hsl(218, 89%, 51%)', 'hsl(28, 95%, 58%)', '#8884d8', '#82ca9d',
 
 export default function Home() {
   const { user } = useAuth();
+  console.log("👤 User role:", user?.role);
   const navigate = useNavigate();
   const { t } = useLanguage();
 
@@ -49,22 +50,36 @@ export default function Home() {
   const [overview, setOverview] = useState<any>(null);
   const [dailyStats, setDailyStats] = useState<any[]>([]);
 
-  useEffect(() => {
-    AuthService.getMfaStatus()
-      .then((status) => {
-        if (!status.mfaEnabled) setMfaDisabled(true);
-      })
-      .catch(() => {});
+ useEffect(() => {
+  AuthService.getMfaStatus()
+    .then((status) => {
+      if (!status.mfaEnabled) setMfaDisabled(true);
+    })
+    .catch(() => {});
+}, []);
 
+useEffect(() => {
+  const fetchData = () => {
+    console.log(" Refresh automatique - " + new Date().toLocaleTimeString()); 
+    
     const token = AuthService.getAccessToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    
     axios.get(`${API_BASE_URL}/dashboard/overview`, { headers })
       .then((r) => setOverview(r.data))
       .catch(() => {});
+    
     axios.get(`${API_BASE_URL}/dashboard/stats`, { headers })
       .then((r) => setDailyStats(r.data || []))
       .catch(() => {});
-  }, []);
+  };
+
+  fetchData();
+  
+  const interval = setInterval(fetchData, 60000);
+  
+  return () => clearInterval(interval);
+}, []);
 
   return (
     <>
@@ -177,7 +192,7 @@ export default function Home() {
         <div className="col-span-12 space-y-6 xl:col-span-7">
           <TransactionMetrics />
 
-          {/* ✅ Fix: Ensure TransactionsChart gets visible height */}
+          {/*  Fix: Ensure TransactionsChart gets visible height */}
           <div className="bg-white rounded-xl shadow p-4">
             <TransactionsChart />
           </div>
@@ -188,7 +203,7 @@ export default function Home() {
         </div>
 
         <div className="col-span-12">
-          {/* ✅ Fix: Ensure StatisticsChart gets visible height */}
+          {/*  Fix: Ensure StatisticsChart gets visible height */}
           <div className="bg-white rounded-xl shadow p-4">
             <StatisticsChart />
           </div>

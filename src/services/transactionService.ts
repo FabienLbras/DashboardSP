@@ -2,6 +2,66 @@ import { apiService, apiUtils } from "../../services/axios";
 import type { Transaction, TransactionFilters, ExportParams, TransactionStats } from "../types/transaction";
 
 export class TransactionService {
+  private static normalizeDateValue(value: unknown): string {
+    if (!value) return "";
+
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+
+    if (typeof value === "number") {
+      const ms = value < 1_000_000_000_000 ? value * 1000 : value;
+      const date = new Date(ms);
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return "";
+
+      const numeric = Number(trimmed);
+      if (!Number.isNaN(numeric) && /^\d+(\.\d+)?$/.test(trimmed)) {
+        return this.normalizeDateValue(numeric);
+      }
+
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+
+      return trimmed;
+    }
+
+    return "";
+  }
+
+  private static normalizeTransaction(row: any): Transaction {
+    return {
+      ...row,
+      id: String(row.id ?? row.transaction_id ?? row.reference ?? ""),
+      amount: Number(row.amount ?? row.total_amount ?? 0),
+      currency: row.currency || row.currency_code || "EUR",
+      state: row.state || row.status || "UNKNOWN",
+      paymentMethod: row.paymentMethod || row.payment_method || row.method || row.card_type || "—",
+      terminal: row.terminal || row.terminal_id || row.terminal_name || row.terminal_reference || "—",
+      createdOn: this.normalizeDateValue(
+        row.createdOn ??
+        row.created_at ??
+        row.createdAt ??
+        row.transaction_at ??
+        row.transaction_date ??
+        row.date ??
+        row.timestamp
+      ),
+      customerName: row.customerName || row.customer_name || row.customer || row.cardholder_name || "—",
+      location: row.location || row.terminal_location || row.site || row.property_name || "—",
+      description: row.description || row.label || "",
+      fees: row.fees != null ? Number(row.fees) : undefined,
+      refundAmount: row.refundAmount ?? row.refund_amount,
+      receiptUrl: row.receiptUrl || row.receipt_url,
+      metadata: row.metadata || {},
+    };
+  }
   
   /**
    * Fetch all transactions with optional filters
@@ -9,7 +69,8 @@ export class TransactionService {
   static async getTransactions(filters: TransactionFilters = {}): Promise<Transaction[]> {
     try {
       const response = await apiService.transactions.getAll(filters);
-      return response.data.items || [];
+      const rows = response.data.items || response.data || [];
+      return rows.map((row: any) => this.normalizeTransaction(row));
     } catch (error) {
       console.error("Error fetching transactions:", error);
       throw new Error(apiUtils.handleError(error));
@@ -22,7 +83,7 @@ export class TransactionService {
   static async getTransactionById(id: string): Promise<Transaction> {
     try {
       const response = await apiService.transactions.getById(id);
-      return response.data;
+      return this.normalizeTransaction(response.data);
     } catch (error) {
       console.error("Error fetching transaction:", error);
       throw new Error(apiUtils.handleError(error));
@@ -179,7 +240,14 @@ export class TransactionService {
    * Format date for display
    */
   static formatDate(date: string | Date): string {
-    return new Date(date).toLocaleString('en-US', {
+    const normalizedDate = this.normalizeDateValue(date);
+    const parsedDate = normalizedDate ? new Date(normalizedDate) : new Date("");
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "—";
+    }
+
+    return parsedDate.toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

@@ -81,7 +81,8 @@ export default function SpAdmins() {
     }
     setSaving(true);
     try {
-      await SpAdminService.create({ ...form, lang });
+      
+      await SpAdminService.create({ name: form.name, email: form.email, password: form.password });
       toast({ title: "Admin created", description: `${form.name} has been invited by email.` });
       setDialogOpen(false);
       setForm(emptyForm());

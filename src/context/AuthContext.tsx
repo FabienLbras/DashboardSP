@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import AuthService, { MfaChallengeResponse, User } from "../services/authService";
 
 interface PendingMfaChallenge {
@@ -32,10 +32,12 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingMfaChallenge, setPendingMfaChallenge] = useState<PendingMfaChallenge | null>(null);
+  const authCheckRan = useRef(false);
 
   // Login function
   const login = async (email: string, password: string, rememberMe = true) => {
@@ -103,56 +105,74 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Check authentication on mount and token changes
   useEffect(() => {
     const checkAuth = async () => {
-      setLoading(true);
-      
+      console.log('[AuthContext] checkAuth START — loading:', loading, 'user:', user);
       if (AuthService.isAuthenticated()) {
+        console.log('[AuthContext] token présent et non expiré (client-side)');
         const currentUser = AuthService.getCurrentUser();
         if (currentUser) {
-          // Validate token with backend
           try {
+            console.log('[AuthContext] appel validateToken...');
             const isValid = await AuthService.validateToken();
+            console.log('[AuthContext] validateToken result:', isValid);
             if (isValid) {
               if (currentUser.role) {
+                console.log('[AuthContext] setUser:', currentUser);
                 setUser(currentUser);
               } else {
                 const profile = await AuthService.getProfile();
+                console.log('[AuthContext] setUser (depuis profil):', profile);
                 setUser(profile);
               }
             } else {
-              // Token is invalid, logout
+              console.log('[AuthContext] token invalide côté serveur → logout');
               AuthService.logout();
               setUser(null);
             }
           } catch (error) {
-            console.error('Token validation failed:', error);
+            console.error('[AuthContext] validateToken exception:', error);
             AuthService.logout();
             setUser(null);
           }
         } else {
+          console.log('[AuthContext] getCurrentUser null → logout');
           AuthService.logout();
           setUser(null);
         }
       } else {
+        console.log('[AuthContext] pas de token valide → user null');
         setUser(null);
       }
-      
+      console.log('[AuthContext] checkAuth END → setLoading(false)');
       setLoading(false);
     };
 
-    checkAuth();
+    // Guard against React Strict Mode double-invocation
+    console.log('[AuthContext] useEffect fired, authCheckRan:', authCheckRan.current);
+    if (!authCheckRan.current) {
+      authCheckRan.current = true;
+      checkAuth();
+    } else {
+      console.log('[AuthContext] checkAuth skipped (Strict Mode second run)');
+    }
 
-    // Listen for storage changes (logout from other tabs)
+    // Event listeners must always be re-registered after Strict Mode cleanup
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'accessToken' && !e.newValue) {
-        // Token was removed, logout
         setUser(null);
       }
     };
 
+    const handleSessionExpired = () => {
+      setUser(null);
+      setLoading(false);
+    };
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('auth:session-expired', handleSessionExpired);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('auth:session-expired', handleSessionExpired);
     };
   }, []);
 

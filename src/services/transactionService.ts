@@ -9,7 +9,13 @@ export class TransactionService {
   static async getTransactions(filters: TransactionFilters = {}): Promise<Transaction[]> {
     try {
       const response = await apiService.transactions.getAll();
-      return response.data.items || [];
+      const rows = response.data.items || response.data || [];
+      return rows.map((row: any) => ({
+        ...row,
+        createdOn: row.createdOn || row.created_at,
+        customerName: row.customerName || row.customer_name,
+        terminal: row.terminal || row.terminal_id,
+      }));
     } catch (error) {
       console.error("Error fetching transactions:", error);
       throw new Error(apiUtils.handleError(error));

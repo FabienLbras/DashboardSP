@@ -213,7 +213,7 @@ export default function Transactions() {
       
       const csvRows = filteredTransactions.map(transaction => [
         transaction.id,
-        new Date(transaction.createdOn).toLocaleString(),
+        TransactionService.formatDate(transaction.createdOn),
         transaction.customerName,
         Number(transaction.amount).toFixed(2),
         transaction.currency || 'USD',
@@ -334,8 +334,7 @@ export default function Transactions() {
       
       const tableRows = filteredTransactions.map(transaction => [
         transaction.id,
-        new Date(transaction.createdOn).toLocaleDateString() + ' ' + 
-        new Date(transaction.createdOn).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+        TransactionService.formatDate(transaction.createdOn),
         transaction.customerName,
         `$${Number(transaction.amount).toFixed(2)}`,
         transaction.currency || 'USD',
@@ -519,7 +518,7 @@ export default function Transactions() {
                     <TableRow key={transaction?.id}>
                       <TableCell className="font-medium">{transaction?.id}</TableCell>
                       <TableCell>
-                        {new Date(transaction?.createdOn).toLocaleString()}
+                        {TransactionService.formatDate(transaction?.createdOn)}
                       </TableCell>
                       <TableCell>{transaction?.customerName}</TableCell>
                       <TableCell className="font-medium">
